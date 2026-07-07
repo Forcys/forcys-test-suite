@@ -4,6 +4,24 @@ Forcys Test Suite is a collection of scripts and references for testing laptops 
 
 The first test is a PowerShell-based power stability run that bootstraps `pwrtest.exe` from the Windows Driver Kit NuGet package, then exercises sleep, Modern Standby, and hibernation cycles while collecting useful diagnostics.
 
+## Download Or Update
+
+From an elevated PowerShell session, run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+Invoke-WebRequest https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1 -OutFile $env:TEMP\install-forcys-test-suite.ps1
+& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite
+```
+
+To download/update the suite and immediately bootstrap PwrTest:
+
+```powershell
+& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -SetupPwrTest
+```
+
+The installer does not require Git. It updates the repository files while preserving local `tools` and `PwrTest-Logs` folders.
+
 ## Power Stability Test
 
 Script:
