@@ -1,0 +1,12 @@
+# Local tool cache and test output
+tools/
+PwrTest-Logs/
+*.evtx
+*.dmp
+*.nfo
+
+# PowerShell/editor noise
+*.log
+*.tmp
+.vscode/
+.idea/
