@@ -90,6 +90,40 @@ function Ensure-Directory {
     }
 }
 
+function Join-PathSafe {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string[]]$ChildPath
+    )
+
+    $current = $Path
+    foreach ($child in $ChildPath) {
+        $current = Join-Path -Path $current -ChildPath $child
+    }
+
+    return $current
+}
+
+function Ensure-ParentDirectory {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $parent = Split-Path -Path $Path -Parent
+    if ($parent) {
+        Ensure-Directory -Path $parent
+    }
+}
+
+function Resolve-DirectoryPath {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $resolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    if ($resolved -match "^[A-Za-z]:$") {
+        return "$resolved\"
+    }
+
+    return $resolved
+}
+
 function Invoke-External {
     param(
         [Parameter(Mandatory)][string]$FilePath,
@@ -132,6 +166,7 @@ function Save-CommandOutput {
     )
 
     try {
+        Ensure-ParentDirectory -Path $Path
         & $Command | Out-File -LiteralPath $Path -Encoding UTF8
     }
     catch {
@@ -308,9 +343,15 @@ function New-TestRoot {
     param([Parameter(Mandatory)][string]$BaseRoot)
 
     $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $root = Join-Path $BaseRoot "Forcys-PwrTest-$stamp"
+    $root = Join-Path -Path (Resolve-DirectoryPath -Path $BaseRoot) -ChildPath "Forcys-PwrTest-$stamp"
 
-    foreach ($folder in @($root, "$root\Reports", "$root\EventLogs", "$root\PwrTest", "$root\Dumps")) {
+    foreach ($folder in @(
+        $root,
+        (Join-PathSafe -Path $root -ChildPath @("Reports")),
+        (Join-PathSafe -Path $root -ChildPath @("EventLogs")),
+        (Join-PathSafe -Path $root -ChildPath @("PwrTest")),
+        (Join-PathSafe -Path $root -ChildPath @("Dumps"))
+    )) {
         Ensure-Directory -Path $folder
     }
 
@@ -321,22 +362,24 @@ function Export-Baseline {
     param([Parameter(Mandatory)][string]$Root)
 
     Write-Section "Collecting baseline"
-    Save-CommandOutput -Command { powercfg /a } -Path "$Root\Reports\powercfg-a.txt" -Description "powercfg /a"
-    Save-CommandOutput -Command { powercfg /requests } -Path "$Root\Reports\powercfg-requests-before.txt" -Description "powercfg /requests"
-    Save-CommandOutput -Command { Get-ComputerInfo } -Path "$Root\Reports\computerinfo.txt" -Description "Get-ComputerInfo"
-    Save-CommandOutput -Command { Get-CimInstance Win32_BIOS | Format-List * } -Path "$Root\Reports\bios.txt" -Description "BIOS inventory"
-    Save-CommandOutput -Command { Get-CimInstance Win32_ComputerSystem | Format-List * } -Path "$Root\Reports\computersystem.txt" -Description "computer system inventory"
-    Save-CommandOutput -Command { Get-CimInstance Win32_Processor | Format-List * } -Path "$Root\Reports\processor.txt" -Description "processor inventory"
-    Save-CommandOutput -Command { Get-CimInstance Win32_PhysicalMemory | Format-List * } -Path "$Root\Reports\memory.txt" -Description "memory inventory"
-    Save-CommandOutput -Command { Get-CimInstance Win32_DiskDrive | Format-List * } -Path "$Root\Reports\diskdrives.txt" -Description "disk inventory"
-    Save-CommandOutput -Command { Get-PnpDevice | Sort-Object Class, FriendlyName } -Path "$Root\Reports\pnpdevices-before.txt" -Description "PnP inventory"
-    Save-CommandOutput -Command { driverquery /v /fo csv } -Path "$Root\Reports\driverquery.csv" -Description "driverquery"
+    $reportsRoot = Join-PathSafe -Path $Root -ChildPath @("Reports")
 
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/batteryreport", "/output", "$Root\Reports\batteryreport.html") -Description "battery report"
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", "120", "/output", "$Root\Reports\energy-before.html") -Description "energy report before"
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/sleepstudy", "/output", "$Root\Reports\sleepstudy-before.html") -Description "sleep study before"
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/systemsleepdiagnostics", "/output", "$Root\Reports\systemsleepdiagnostics-before.html") -Description "system sleep diagnostics before"
-    Invoke-OptionalExternal -FilePath "msinfo32.exe" -Arguments @("/nfo", "$Root\Reports\msinfo32.nfo") -Description "msinfo32 export"
+    Save-CommandOutput -Command { powercfg /a } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("powercfg-a.txt")) -Description "powercfg /a"
+    Save-CommandOutput -Command { powercfg /requests } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("powercfg-requests-before.txt")) -Description "powercfg /requests"
+    Save-CommandOutput -Command { Get-ComputerInfo } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("computerinfo.txt")) -Description "Get-ComputerInfo"
+    Save-CommandOutput -Command { Get-CimInstance Win32_BIOS | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("bios.txt")) -Description "BIOS inventory"
+    Save-CommandOutput -Command { Get-CimInstance Win32_ComputerSystem | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("computersystem.txt")) -Description "computer system inventory"
+    Save-CommandOutput -Command { Get-CimInstance Win32_Processor | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("processor.txt")) -Description "processor inventory"
+    Save-CommandOutput -Command { Get-CimInstance Win32_PhysicalMemory | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("memory.txt")) -Description "memory inventory"
+    Save-CommandOutput -Command { Get-CimInstance Win32_DiskDrive | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("diskdrives.txt")) -Description "disk inventory"
+    Save-CommandOutput -Command { Get-PnpDevice | Sort-Object Class, FriendlyName } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("pnpdevices-before.txt")) -Description "PnP inventory"
+    Save-CommandOutput -Command { driverquery /v /fo csv } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("driverquery.csv")) -Description "driverquery"
+
+    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/batteryreport", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("batteryreport.html"))) -Description "battery report"
+    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", "120", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("energy-before.html"))) -Description "energy report before"
+    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/sleepstudy", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("sleepstudy-before.html"))) -Description "sleep study before"
+    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/systemsleepdiagnostics", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("systemsleepdiagnostics-before.html"))) -Description "system sleep diagnostics before"
+    Invoke-OptionalExternal -FilePath "msinfo32.exe" -Arguments @("/nfo", (Join-PathSafe -Path $reportsRoot -ChildPath @("msinfo32.nfo"))) -Description "msinfo32 export"
 }
 
 function Export-EventLogs {
@@ -346,6 +389,7 @@ function Export-EventLogs {
     )
 
     Write-Section "Exporting event logs: $Stage"
+    $eventLogsRoot = Join-PathSafe -Path $Root -ChildPath @("EventLogs")
 
     $logs = @(
         "System",
@@ -358,7 +402,7 @@ function Export-EventLogs {
 
     foreach ($log in $logs) {
         $safeName = $log -replace "[\\/:]", "_"
-        Invoke-OptionalExternal -FilePath "wevtutil.exe" -Arguments @("epl", $log, "$Root\EventLogs\$Stage-$safeName.evtx") -Description "event log export for $log"
+        Invoke-OptionalExternal -FilePath "wevtutil.exe" -Arguments @("epl", $log, (Join-PathSafe -Path $eventLogsRoot -ChildPath @("$Stage-$safeName.evtx"))) -Description "event log export for $log"
     }
 
     Save-CommandOutput -Command {
@@ -368,20 +412,21 @@ function Export-EventLogs {
             } |
             Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message |
             Format-List
-    } -Path "$Root\EventLogs\$Stage-interesting-system-events.txt" -Description "interesting system event export"
+    } -Path (Join-PathSafe -Path $eventLogsRoot -ChildPath @("$Stage-interesting-system-events.txt")) -Description "interesting system event export"
 }
 
 function Copy-Dumps {
     param([Parameter(Mandatory)][string]$Root)
 
     Write-Section "Copying crash dumps"
+    $dumpsRoot = Join-PathSafe -Path $Root -ChildPath @("Dumps")
 
     if (Test-Path -LiteralPath "C:\Windows\Minidump") {
-        Copy-Item -Path "C:\Windows\Minidump\*.dmp" -Destination "$Root\Dumps" -ErrorAction SilentlyContinue
+        Copy-Item -Path "C:\Windows\Minidump\*.dmp" -Destination $dumpsRoot -ErrorAction SilentlyContinue
     }
 
     if (Test-Path -LiteralPath "C:\Windows\MEMORY.DMP") {
-        Copy-Item -LiteralPath "C:\Windows\MEMORY.DMP" -Destination "$Root\Dumps" -ErrorAction SilentlyContinue
+        Copy-Item -LiteralPath "C:\Windows\MEMORY.DMP" -Destination $dumpsRoot -ErrorAction SilentlyContinue
     }
 }
 
@@ -414,7 +459,7 @@ function Get-PowerStateInfo {
 
     Write-Section "Detecting power states"
     $states = powercfg /a | Out-String
-    $states | Out-File -LiteralPath "$Root\Reports\power-states.txt" -Encoding UTF8
+    $states | Out-File -LiteralPath (Join-PathSafe -Path $Root -ChildPath @("Reports", "power-states.txt")) -Encoding UTF8
     Write-Host $states
 
     $availableStates = Get-AvailablePowerStateText -PowerCfgOutput $states
@@ -461,13 +506,15 @@ function Invoke-PwrTestRuns {
     $stateInfo = Get-PowerStateInfo -Root $Root
 
     if (-not $NoSleep -and $SleepCycleCount -gt 0) {
+        $pwrTestLogRoot = Join-PathSafe -Path $Root -ChildPath @("PwrTest")
+
         if ($stateInfo.HasS3) {
             Write-Section "Starting S3 sleep test"
-            Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/sleep", "/c:$SleepCycleCount", "/s:3", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:sleep-s3") -Name "S3 sleep test" | Out-Null
+            Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/sleep", "/c:$SleepCycleCount", "/s:3", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$pwrTestLogRoot", "/ln:sleep-s3") -Name "S3 sleep test" | Out-Null
         }
         elseif ($stateInfo.HasS0) {
             Write-Section "Starting Modern Standby test"
-            Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/lf:$Root\PwrTest", "/ln:connected-standby") -Name "Modern Standby test" | Out-Null
+            Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/lf:$pwrTestLogRoot", "/ln:connected-standby") -Name "Modern Standby test" | Out-Null
         }
         else {
             Write-Warning "No clear S3 or Modern Standby support detected. Sleep test skipped."
@@ -475,6 +522,8 @@ function Invoke-PwrTestRuns {
     }
 
     if (-not $NoHibernate -and $HibernateCycleCount -gt 0) {
+        $pwrTestLogRoot = Join-PathSafe -Path $Root -ChildPath @("PwrTest")
+
         if (-not $stateInfo.HasS4) {
             Write-Host "Hibernate/S4 is not currently reported as available. Trying to enable hibernation."
             Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/hibernate", "on") -Description "enable hibernation"
@@ -482,7 +531,7 @@ function Invoke-PwrTestRuns {
         }
 
         Write-Section "Starting S4 hibernate test"
-        Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/sleep", "/c:$HibernateCycleCount", "/s:4", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:hibernate-s4") -Name "S4 hibernate test" | Out-Null
+        Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/sleep", "/c:$HibernateCycleCount", "/s:4", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$pwrTestLogRoot", "/ln:hibernate-s4") -Name "S4 hibernate test" | Out-Null
     }
 }
 
@@ -490,12 +539,14 @@ function Export-AfterReports {
     param([Parameter(Mandatory)][string]$Root)
 
     Write-Section "Collecting after-test reports"
-    Save-CommandOutput -Command { powercfg /requests } -Path "$Root\Reports\powercfg-requests-after.txt" -Description "powercfg /requests after"
-    Save-CommandOutput -Command { Get-PnpDevice | Sort-Object Class, FriendlyName } -Path "$Root\Reports\pnpdevices-after.txt" -Description "PnP inventory after"
+    $reportsRoot = Join-PathSafe -Path $Root -ChildPath @("Reports")
 
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", "120", "/output", "$Root\Reports\energy-after.html") -Description "energy report after"
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/sleepstudy", "/output", "$Root\Reports\sleepstudy-after.html") -Description "sleep study after"
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/systemsleepdiagnostics", "/output", "$Root\Reports\systemsleepdiagnostics-after.html") -Description "system sleep diagnostics after"
+    Save-CommandOutput -Command { powercfg /requests } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("powercfg-requests-after.txt")) -Description "powercfg /requests after"
+    Save-CommandOutput -Command { Get-PnpDevice | Sort-Object Class, FriendlyName } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("pnpdevices-after.txt")) -Description "PnP inventory after"
+
+    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", "120", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("energy-after.html"))) -Description "energy report after"
+    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/sleepstudy", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("sleepstudy-after.html"))) -Description "sleep study after"
+    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/systemsleepdiagnostics", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("systemsleepdiagnostics-after.html"))) -Description "system sleep diagnostics after"
 }
 
 function Write-TestReadme {
@@ -551,7 +602,7 @@ Recommended customer-case follow-up:
 4. Run a separate dock test with external display, ethernet, and USB devices attached.
 "@
 
-    $readme | Out-File -LiteralPath "$Root\README.txt" -Encoding UTF8
+    $readme | Out-File -LiteralPath (Join-PathSafe -Path $Root -ChildPath @("README.txt")) -Encoding UTF8
 }
 
 Assert-Administrator
@@ -598,7 +649,7 @@ $testRoot = New-TestRoot -BaseRoot $OutputRoot
 $transcriptStarted = $false
 
 try {
-    Start-Transcript -Path "$testRoot\transcript.txt" -Force | Out-Null
+    Start-Transcript -Path (Join-PathSafe -Path $testRoot -ChildPath @("transcript.txt")) -Force | Out-Null
     $transcriptStarted = $true
 
     Write-Section "Test output"
@@ -635,7 +686,7 @@ try {
     Write-Host $testRoot
     Write-Host ""
     Write-Host "Open:"
-    Write-Host "$testRoot\README.txt"
+    Write-Host (Join-PathSafe -Path $testRoot -ChildPath @("README.txt"))
 }
 finally {
     if ($transcriptStarted) {

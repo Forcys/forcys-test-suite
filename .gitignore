@@ -1,6 +1,7 @@
 # Local tool cache and test output
 tools/
 PwrTest-Logs/
+Forcys-PwrTest-*/
 *.evtx
 *.dmp
 *.nfo
