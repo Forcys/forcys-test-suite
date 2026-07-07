@@ -480,12 +480,24 @@ function Invoke-PwrTestScenario {
         [Parameter(Mandatory)][string]$Name
     )
 
+    $pwrTestDirectory = Split-Path -Path $PwrTestExe -Parent
+
     try {
-        Invoke-External -FilePath $PwrTestExe -Arguments $Arguments | Out-Null
+        Push-Location -LiteralPath $pwrTestDirectory
+        try {
+            Invoke-External -FilePath $PwrTestExe -Arguments $Arguments | Out-Null
+        }
+        finally {
+            Pop-Location
+        }
+
         return $true
     }
     catch {
         Write-Warning "$Name did not complete successfully: $($_.Exception.Message)"
+        if ($_.Exception.Message -match "exit code 1285") {
+            Write-Warning "Exit code 1285 usually means PwrTest failed to load a delayed runtime dependency. The script now runs PwrTest from its staged tool directory; if this still occurs, install the full Windows Driver Kit/WDTF runtime on the test machine."
+        }
         Write-Warning "Continuing so after-test reports and other supported scenarios can still run."
         return $false
     }
