@@ -359,6 +359,30 @@ function Copy-Dumps {
     }
 }
 
+function Get-AvailablePowerStateText {
+    param([Parameter(Mandatory)][string]$PowerCfgOutput)
+
+    $sectionMatch = [regex]::Match(
+        $PowerCfgOutput,
+        "(?is)(?:The following sleep states are available on this system:|De volgende slaapstanden zijn beschikbaar op dit systeem:)(.*?)(?:The following sleep states are not available on this system:|De volgende slaapstanden zijn niet beschikbaar op dit systeem:|$)"
+    )
+
+    if ($sectionMatch.Success) {
+        return $sectionMatch.Groups[1].Value
+    }
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    foreach ($line in ($PowerCfgOutput -split "\r?\n")) {
+        if ($line -match "not available|niet beschikbaar") {
+            break
+        }
+
+        $lines.Add($line)
+    }
+
+    return ($lines -join [Environment]::NewLine)
+}
+
 function Get-PowerStateInfo {
     param([Parameter(Mandatory)][string]$Root)
 
@@ -367,11 +391,32 @@ function Get-PowerStateInfo {
     $states | Out-File -LiteralPath "$Root\Reports\power-states.txt" -Encoding UTF8
     Write-Host $states
 
+    $availableStates = Get-AvailablePowerStateText -PowerCfgOutput $states
+
     return [pscustomobject]@{
-        HasS3 = $states -match "\bS3\b"
-        HasS4 = $states -match "\bS4\b|Hibernate|Sluimerstand"
-        HasS0 = $states -match "S0 Low Power Idle|Modern Standby|Moderne stand-by|Stand-by \(S0|Connected Standby"
+        HasS3 = $availableStates -match "\bS3\b"
+        HasS4 = $availableStates -match "\bS4\b|Hibernate|Sluimerstand"
+        HasS0 = $availableStates -match "S0 Low Power Idle|Modern Standby|Moderne stand-by|Stand-by \(S0|Connected Standby"
         Raw = $states
+        Available = $availableStates
+    }
+}
+
+function Invoke-PwrTestScenario {
+    param(
+        [Parameter(Mandatory)][string]$PwrTestExe,
+        [Parameter(Mandatory)][string[]]$Arguments,
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    try {
+        Invoke-External -FilePath $PwrTestExe -Arguments $Arguments | Out-Null
+        return $true
+    }
+    catch {
+        Write-Warning "$Name did not complete successfully: $($_.Exception.Message)"
+        Write-Warning "Continuing so after-test reports and other supported scenarios can still run."
+        return $false
     }
 }
 
@@ -392,11 +437,11 @@ function Invoke-PwrTestRuns {
     if (-not $NoSleep -and $SleepCycleCount -gt 0) {
         if ($stateInfo.HasS3) {
             Write-Section "Starting S3 sleep test"
-            Invoke-External -FilePath $PwrTestExe -Arguments @("/sleep", "/c:$SleepCycleCount", "/s:3", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:sleep-s3") | Out-Null
+            Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/sleep", "/c:$SleepCycleCount", "/s:3", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:sleep-s3") -Name "S3 sleep test" | Out-Null
         }
         elseif ($stateInfo.HasS0) {
             Write-Section "Starting Modern Standby test"
-            Invoke-External -FilePath $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/lf:$Root\PwrTest", "/ln:connected-standby") | Out-Null
+            Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/lf:$Root\PwrTest", "/ln:connected-standby") -Name "Modern Standby test" | Out-Null
         }
         else {
             Write-Warning "No clear S3 or Modern Standby support detected. Sleep test skipped."
@@ -411,7 +456,7 @@ function Invoke-PwrTestRuns {
         }
 
         Write-Section "Starting S4 hibernate test"
-        Invoke-External -FilePath $PwrTestExe -Arguments @("/sleep", "/c:$HibernateCycleCount", "/s:4", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:hibernate-s4") | Out-Null
+        Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/sleep", "/c:$HibernateCycleCount", "/s:4", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:hibernate-s4") -Name "S4 hibernate test" | Out-Null
     }
 }
 
@@ -514,8 +559,7 @@ if (-not $foundPwrTest) {
 Ensure-PwrTestTool -SourcePwrTest $foundPwrTest -TargetPwrTest $pwrTestExe -Force:$ForceInstallPwrTest
 Test-PwrTestSignature -PwrTestExe $pwrTestExe
 
-Write-Section "PwrTest help check"
-Invoke-OptionalExternal -FilePath $pwrTestExe -Arguments @("/?") -Description "PwrTest help check"
+Write-Verbose "Skipping PwrTest help check during setup. PwrTest can return a nonzero code for help output when ETW requirements are not satisfied."
 
 if ($SetupOnly) {
     Write-Host ""
