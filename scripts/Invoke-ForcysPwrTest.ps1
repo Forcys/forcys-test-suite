@@ -67,6 +67,12 @@ function Assert-Administrator {
     }
 }
 
+function Assert-NativePowerShell {
+    if ([Environment]::Is64BitOperatingSystem -and -not [Environment]::Is64BitProcess) {
+        throw "Run this script from 64-bit PowerShell. PwrTest ETW tracing is not supported from 32-bit PowerShell on 64-bit Windows."
+    }
+}
+
 function Write-Section {
     param([Parameter(Mandatory)][string]$Text)
 
@@ -386,11 +392,11 @@ function Invoke-PwrTestRuns {
     if (-not $NoSleep -and $SleepCycleCount -gt 0) {
         if ($stateInfo.HasS3) {
             Write-Section "Starting S3 sleep test"
-            Invoke-External -FilePath $PwrTestExe -Arguments @("/sleep", "/c:$SleepCycleCount", "/s:3", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/ln:$Root\PwrTest\sleep-s3.xml") | Out-Null
+            Invoke-External -FilePath $PwrTestExe -Arguments @("/sleep", "/c:$SleepCycleCount", "/s:3", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:sleep-s3") | Out-Null
         }
         elseif ($stateInfo.HasS0) {
             Write-Section "Starting Modern Standby test"
-            Invoke-External -FilePath $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/ln:$Root\PwrTest\connected-standby.xml") | Out-Null
+            Invoke-External -FilePath $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/lf:$Root\PwrTest", "/ln:connected-standby") | Out-Null
         }
         else {
             Write-Warning "No clear S3 or Modern Standby support detected. Sleep test skipped."
@@ -405,7 +411,7 @@ function Invoke-PwrTestRuns {
         }
 
         Write-Section "Starting S4 hibernate test"
-        Invoke-External -FilePath $PwrTestExe -Arguments @("/sleep", "/c:$HibernateCycleCount", "/s:4", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/ln:$Root\PwrTest\hibernate-s4.xml") | Out-Null
+        Invoke-External -FilePath $PwrTestExe -Arguments @("/sleep", "/c:$HibernateCycleCount", "/s:4", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/unattend", "/lf:$Root\PwrTest", "/ln:hibernate-s4") | Out-Null
     }
 }
 
@@ -478,6 +484,7 @@ Recommended customer-case follow-up:
 }
 
 Assert-Administrator
+Assert-NativePowerShell
 
 $nuGetExe = Join-Path $ToolsRoot "NuGet\nuget.exe"
 $wdkRoot = Join-Path $ToolsRoot "WDK-NuGet"
@@ -508,7 +515,7 @@ Ensure-PwrTestTool -SourcePwrTest $foundPwrTest -TargetPwrTest $pwrTestExe -Forc
 Test-PwrTestSignature -PwrTestExe $pwrTestExe
 
 Write-Section "PwrTest help check"
-Invoke-External -FilePath $pwrTestExe -Arguments @("/?") | Out-Null
+Invoke-OptionalExternal -FilePath $pwrTestExe -Arguments @("/?") -Description "PwrTest help check"
 
 if ($SetupOnly) {
     Write-Host ""
