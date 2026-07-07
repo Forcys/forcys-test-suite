@@ -26,6 +26,9 @@ param(
     [ValidateRange(1, 86400)]
     [int]$SleepSeconds = 60,
 
+    [ValidateRange(10, 3600)]
+    [int]$EnergyDurationSeconds = 120,
+
     [ValidateNotNullOrEmpty()]
     [string]$ToolsRoot = (Join-Path $env:ProgramData "Forcys\TestSuite"),
 
@@ -41,11 +44,16 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$WdkPackage = "Microsoft.Windows.WDK.x64",
 
+    [ValidateNotNullOrEmpty()]
+    [string]$WdkWingetPackageId = "Auto",
+
     [string]$WdkPackageVersion,
 
+    [switch]$InstallFullWDK,
     [switch]$SetupOnly,
     [switch]$SkipSleep,
     [switch]$SkipHibernate,
+    [switch]$SkipEnergyReport,
     [switch]$SkipAdminCheck,
     [switch]$ForceRedownloadNuGet,
     [switch]$ForceRedownloadWDK,
@@ -245,6 +253,22 @@ function Find-PwrTest {
     return ($matches | Sort-Object FullName -Descending | Select-Object -First 1).FullName
 }
 
+function Find-InstalledPwrTest {
+    $kitRoots = @(
+        "${env:ProgramFiles(x86)}\Windows Kits\10\Tools",
+        "$env:ProgramFiles\Windows Kits\10\Tools"
+    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+
+    foreach ($kitRoot in $kitRoots) {
+        $pwrTest = Find-PwrTest -SearchRoot $kitRoot
+        if ($pwrTest) {
+            return $pwrTest
+        }
+    }
+
+    return $null
+}
+
 function Ensure-WdkPackage {
     param(
         [Parameter(Mandatory)][string]$NuGetExe,
@@ -339,6 +363,101 @@ function Test-PwrTestSignature {
     }
 }
 
+function Test-FullWindowsDriverKitInstalled {
+    return [bool](Find-InstalledPwrTest)
+}
+
+function Write-PwrTestRuntimePreflight {
+    $installedPwrTest = Find-InstalledPwrTest
+    if ($installedPwrTest) {
+        Write-Host "Full Windows Driver Kit PwrTest detected:"
+        Write-Host $installedPwrTest
+        return
+    }
+
+    Write-Warning "Full Windows Driver Kit installation was not detected."
+    Write-Warning "The NuGet WDK package can provide pwrtest.exe, but PwrTest sleep scenarios may still require full WDK/WDTF runtime components."
+    Write-Warning "If PwrTest exits with code 1285, install the full Windows Driver Kit on the test machine and rerun this script."
+}
+
+function Get-WindowsBuildNumber {
+    try {
+        return [int](Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name "CurrentBuildNumber")
+    }
+    catch {
+        return [Environment]::OSVersion.Version.Build
+    }
+}
+
+function Resolve-WdkWingetPackageId {
+    param([Parameter(Mandatory)][string]$PackageId)
+
+    if ($PackageId -ne "Auto") {
+        return $PackageId
+    }
+
+    $build = Get-WindowsBuildNumber
+
+    if ($build -ge 26100) {
+        return "Microsoft.WindowsWDK.10.0.26100"
+    }
+
+    if ($build -ge 22621) {
+        return "Microsoft.WindowsWDK.10.0.22621"
+    }
+
+    if ($build -ge 22000) {
+        return "Microsoft.WindowsWDK.10.0.22000"
+    }
+
+    return "Microsoft.WindowsWDK.10.0.19041"
+}
+
+function Ensure-FullWindowsDriverKit {
+    param([Parameter(Mandatory)][string]$PackageId)
+
+    Write-Section "Checking full Windows Driver Kit"
+    $resolvedPackageId = Resolve-WdkWingetPackageId -PackageId $PackageId
+
+    $installedPwrTest = Find-InstalledPwrTest
+    if ($installedPwrTest) {
+        Write-Host "Full Windows Driver Kit already appears to be installed:"
+        Write-Host $installedPwrTest
+        return
+    }
+
+    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if (-not $winget) {
+        throw "winget.exe was not found. Install App Installer from Microsoft Store, or install the Windows Driver Kit manually from Microsoft Learn."
+    }
+
+    Write-Host "Installing Windows Driver Kit via winget package:"
+    Write-Host $resolvedPackageId
+    if ($PackageId -eq "Auto") {
+        Write-Host "Auto-selected for Windows build $(Get-WindowsBuildNumber)."
+    }
+    Write-Warning "The full Windows Driver Kit is large and may take several minutes to install."
+
+    $arguments = @(
+        "install",
+        "--id", $resolvedPackageId,
+        "--source", "winget",
+        "--exact",
+        "--accept-package-agreements",
+        "--accept-source-agreements"
+    )
+
+    Invoke-External -FilePath $winget.Source -Arguments $arguments | Out-Null
+
+    $installedPwrTest = Find-InstalledPwrTest
+    if (-not $installedPwrTest) {
+        throw "Windows Driver Kit installation completed, but pwrtest.exe was not found under Windows Kits. A reboot or manual WDK repair may be required."
+    }
+
+    Write-Host "Full Windows Driver Kit PwrTest is ready:"
+    Write-Host $installedPwrTest
+}
+
 function New-TestRoot {
     param([Parameter(Mandatory)][string]$BaseRoot)
 
@@ -359,7 +478,11 @@ function New-TestRoot {
 }
 
 function Export-Baseline {
-    param([Parameter(Mandatory)][string]$Root)
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [int]$EnergyDuration,
+        [switch]$NoEnergyReport
+    )
 
     Write-Section "Collecting baseline"
     $reportsRoot = Join-PathSafe -Path $Root -ChildPath @("Reports")
@@ -376,7 +499,10 @@ function Export-Baseline {
     Save-CommandOutput -Command { driverquery /v /fo csv } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("driverquery.csv")) -Description "driverquery"
 
     Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/batteryreport", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("batteryreport.html"))) -Description "battery report"
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", "120", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("energy-before.html"))) -Description "energy report before"
+    if (-not $NoEnergyReport) {
+        Write-Host "Collecting powercfg /energy report before test. This takes about $EnergyDuration seconds."
+        Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", $EnergyDuration.ToString(), "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("energy-before.html"))) -Description "energy report before"
+    }
     Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/sleepstudy", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("sleepstudy-before.html"))) -Description "sleep study before"
     Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/systemsleepdiagnostics", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("systemsleepdiagnostics-before.html"))) -Description "system sleep diagnostics before"
     Invoke-OptionalExternal -FilePath "msinfo32.exe" -Arguments @("/nfo", (Join-PathSafe -Path $reportsRoot -ChildPath @("msinfo32.nfo"))) -Description "msinfo32 export"
@@ -548,7 +674,11 @@ function Invoke-PwrTestRuns {
 }
 
 function Export-AfterReports {
-    param([Parameter(Mandatory)][string]$Root)
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [int]$EnergyDuration,
+        [switch]$NoEnergyReport
+    )
 
     Write-Section "Collecting after-test reports"
     $reportsRoot = Join-PathSafe -Path $Root -ChildPath @("Reports")
@@ -556,7 +686,10 @@ function Export-AfterReports {
     Save-CommandOutput -Command { powercfg /requests } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("powercfg-requests-after.txt")) -Description "powercfg /requests after"
     Save-CommandOutput -Command { Get-PnpDevice | Sort-Object Class, FriendlyName } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("pnpdevices-after.txt")) -Description "PnP inventory after"
 
-    Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", "120", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("energy-after.html"))) -Description "energy report after"
+    if (-not $NoEnergyReport) {
+        Write-Host "Collecting powercfg /energy report after test. This takes about $EnergyDuration seconds."
+        Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/energy", "/duration", $EnergyDuration.ToString(), "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("energy-after.html"))) -Description "energy report after"
+    }
     Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/sleepstudy", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("sleepstudy-after.html"))) -Description "sleep study after"
     Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/systemsleepdiagnostics", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("systemsleepdiagnostics-after.html"))) -Description "system sleep diagnostics after"
 }
@@ -629,6 +762,10 @@ Ensure-Directory -Path $OutputRoot
 
 Write-Section "Forcys PwrTest setup"
 
+if ($InstallFullWDK) {
+    Ensure-FullWindowsDriverKit -PackageId $WdkWingetPackageId
+}
+
 Ensure-NuGet -NuGetExe $nuGetExe -Url $NuGetUrl -Force:$ForceRedownloadNuGet
 Test-NuGet -NuGetExe $nuGetExe
 
@@ -640,13 +777,23 @@ Ensure-WdkPackage `
     -PackageVersion $WdkPackageVersion `
     -Force:$ForceRedownloadWDK
 
-$foundPwrTest = Find-PwrTest -SearchRoot $wdkRoot
+$installedPwrTest = Find-InstalledPwrTest
+if ($installedPwrTest) {
+    Write-Host "Using PwrTest from the installed Windows Driver Kit:"
+    Write-Host $installedPwrTest
+    $foundPwrTest = $installedPwrTest
+}
+else {
+    $foundPwrTest = Find-PwrTest -SearchRoot $wdkRoot
+}
+
 if (-not $foundPwrTest) {
     throw "pwrtest.exe was not found under $wdkRoot after installing $WdkPackage."
 }
 
 Ensure-PwrTestTool -SourcePwrTest $foundPwrTest -TargetPwrTest $pwrTestExe -Force:$ForceInstallPwrTest
 Test-PwrTestSignature -PwrTestExe $pwrTestExe
+Write-PwrTestRuntimePreflight
 
 Write-Verbose "Skipping PwrTest help check during setup. PwrTest can return a nonzero code for help output when ETW requirements are not satisfied."
 
@@ -667,7 +814,7 @@ try {
     Write-Section "Test output"
     Write-Host $testRoot
 
-    Export-Baseline -Root $testRoot
+    Export-Baseline -Root $testRoot -EnergyDuration $EnergyDurationSeconds -NoEnergyReport:$SkipEnergyReport
     Export-EventLogs -Root $testRoot -Stage "before"
 
     Invoke-PwrTestRuns `
@@ -680,7 +827,7 @@ try {
         -NoSleep:$SkipSleep `
         -NoHibernate:$SkipHibernate
 
-    Export-AfterReports -Root $testRoot
+    Export-AfterReports -Root $testRoot -EnergyDuration $EnergyDurationSeconds -NoEnergyReport:$SkipEnergyReport
     Export-EventLogs -Root $testRoot -Stage "after"
     Copy-Dumps -Root $testRoot
 
