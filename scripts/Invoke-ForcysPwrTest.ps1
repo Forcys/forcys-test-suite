@@ -250,19 +250,45 @@ function Ensure-PwrTestTool {
     )
 
     Write-Section "Checking staged PwrTest"
-    Ensure-Directory -Path (Split-Path -Path $TargetPwrTest -Parent)
+    $sourceDirectory = Split-Path -Path $SourcePwrTest -Parent
+    $targetDirectory = Split-Path -Path $TargetPwrTest -Parent
+    Ensure-Directory -Path $targetDirectory
 
-    if ((Test-Path -LiteralPath $TargetPwrTest) -and -not $Force) {
-        $sourceHash = (Get-FileHash -LiteralPath $SourcePwrTest -Algorithm SHA256).Hash
-        $targetHash = (Get-FileHash -LiteralPath $TargetPwrTest -Algorithm SHA256).Hash
+    $sourceFiles = Get-ChildItem -LiteralPath $sourceDirectory -File
+    $needsCopy = [bool]$Force
 
-        if ($sourceHash -eq $targetHash) {
-            Write-Host "PwrTest is already staged: $TargetPwrTest"
-            return
+    if (-not $needsCopy) {
+        foreach ($sourceFile in $sourceFiles) {
+            $targetFile = Join-Path $targetDirectory $sourceFile.Name
+
+            if (-not (Test-Path -LiteralPath $targetFile)) {
+                $needsCopy = $true
+                break
+            }
+
+            if ($sourceFile.Length -ne (Get-Item -LiteralPath $targetFile).Length) {
+                $needsCopy = $true
+                break
+            }
         }
     }
 
-    Copy-Item -LiteralPath $SourcePwrTest -Destination $TargetPwrTest -Force
+    if (-not $needsCopy) {
+        Write-Host "PwrTest tool directory is already staged: $targetDirectory"
+        return
+    }
+
+    Write-Host "Staging PwrTest tool directory:"
+    Write-Host $targetDirectory
+
+    foreach ($sourceFile in $sourceFiles) {
+        Copy-Item -LiteralPath $sourceFile.FullName -Destination (Join-Path $targetDirectory $sourceFile.Name) -Force
+    }
+
+    if (-not (Test-Path -LiteralPath $TargetPwrTest)) {
+        throw "Staging PwrTest failed. Target executable was not created: $TargetPwrTest"
+    }
+
     Write-Host "PwrTest staged: $TargetPwrTest"
 }
 
