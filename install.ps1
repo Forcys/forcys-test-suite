@@ -19,6 +19,9 @@ param(
     [string]$RepositoryZipUrl = "https://github.com/Forcys/forcys-test-suite/archive/refs/heads/main.zip",
 
     [switch]$SetupPwrTest,
+    [switch]$RunSuite,
+    [ValidateSet("Quick", "Triage", "Full")]
+    [string]$Profile = "Triage",
     [switch]$InstallFullWDK,
     [switch]$InstallWdtf,
     [switch]$Force
@@ -62,30 +65,46 @@ function Ensure-Tls12 {
 }
 
 function Remove-ExistingRepoFile {
-    param([Parameter(Mandatory)][string]$Path)
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$BackupRoot
+    )
 
     if (-not (Test-Path -LiteralPath $Path)) {
         return
     }
 
-    if ($Force) {
-        Remove-Item -LiteralPath $Path -Recurse -Force
-        return
+    $item = Get-Item -LiteralPath $Path -Force
+    Ensure-Directory -Path $BackupRoot
+    Move-Item -LiteralPath $Path -Destination (Join-Path $BackupRoot $item.Name) -Force
+}
+
+function Test-PreserveInstallItem {
+    param([Parameter(Mandatory)][System.IO.FileSystemInfo]$Item)
+
+    if ($Item.PSIsContainer) {
+        return @(
+            ".git",
+            ".agents",
+            ".codex",
+            "tools",
+            "Runs",
+            "PwrTest-Logs",
+            "KernelPower-Logs",
+            "analysis",
+            "Reports",
+            "Dumps"
+        ) -contains $Item.Name -or $Item.Name -like "*-Logs"
     }
 
-    $item = Get-Item -LiteralPath $Path -Force
-    if ($item.PSIsContainer) {
-        Remove-Item -LiteralPath $Path -Recurse -Force
-    }
-    else {
-        Remove-Item -LiteralPath $Path -Force
-    }
+    return $Item.Extension -in @(".zip", ".evtx", ".dmp", ".log")
 }
 
 $installRootPath = Resolve-DirectoryPath -Path $InstallRoot
 $tempRoot = Join-Path $env:TEMP ("forcys-test-suite-install-" + [guid]::NewGuid().ToString())
 $zipPath = Join-Path $tempRoot "forcys-test-suite.zip"
 $extractRoot = Join-Path $tempRoot "extract"
+$backupRoot = Join-Path $installRootPath ("install-backups\" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 
 try {
     Write-Section "Forcys Test Suite download/update"
@@ -110,23 +129,20 @@ try {
     }
 
     Write-Section "Updating files"
-    $preserveNames = @(
-        ".git",
-        ".agents",
-        ".codex",
-        "tools",
-        "PwrTest-Logs"
-    )
-
     foreach ($sourceItem in Get-ChildItem -LiteralPath $sourceRoot.FullName -Force) {
-        if ($preserveNames -contains $sourceItem.Name) {
+        if (Test-PreserveInstallItem -Item $sourceItem) {
             continue
         }
 
         $targetPath = Join-Path $installRootPath $sourceItem.Name
-        Remove-ExistingRepoFile -Path $targetPath
+        Remove-ExistingRepoFile -Path $targetPath -BackupRoot $backupRoot
         Copy-Item -LiteralPath $sourceItem.FullName -Destination $targetPath -Recurse -Force
         Write-Host "Updated $($sourceItem.Name)"
+    }
+
+    if (Test-Path -LiteralPath $backupRoot) {
+        Write-Host "Previous repo-managed files were backed up to:"
+        Write-Host $backupRoot
     }
 
     if ($SetupPwrTest) {
@@ -151,13 +167,39 @@ try {
         }
     }
 
+    if ($RunSuite) {
+        Write-Section "Running Forcys Test Suite"
+        $suiteScript = Join-Path $installRootPath "Invoke-Forcys.ps1"
+        if (-not (Test-Path -LiteralPath $suiteScript)) {
+            throw "Forcys suite entry point not found after update: $suiteScript"
+        }
+
+        $suiteArguments = @("-ExecutionPolicy", "Bypass", "-File", $suiteScript, "-Profile", $Profile, "-InstallRoot", $installRootPath)
+        if ($InstallFullWDK -or $InstallWdtf) {
+            $suiteArguments += "-InstallTools"
+        }
+
+        if ($InstallFullWDK) {
+            $suiteArguments += "-InstallFullWDK"
+        }
+
+        if ($InstallWdtf) {
+            $suiteArguments += "-InstallWdtf"
+        }
+
+        & powershell.exe @suiteArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Forcys Test Suite run failed with exit code $LASTEXITCODE."
+        }
+    }
+
     Write-Section "Done"
     Write-Host "Forcys Test Suite is ready:"
     Write-Host $installRootPath
     Write-Host ""
     Write-Host "Run a short power test from an elevated PowerShell session:"
     Write-Host "cd `"$installRootPath`""
-    Write-Host ".\scripts\Invoke-ForcysPwrTest.ps1 -SleepCycles 2 -HibernateCycles 1 -AwakeSeconds 60 -SleepSeconds 30"
+    Write-Host ".\Invoke-Forcys.ps1 -Profile Triage"
 }
 finally {
     if (Test-Path -LiteralPath $tempRoot) {

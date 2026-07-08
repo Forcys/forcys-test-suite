@@ -36,6 +36,7 @@ param(
     [switch]$SkipBatteryReport,
     [switch]$SkipDumpCopy,
     [switch]$SkipDumpAnalysis,
+    [switch]$SkipStorageScan,
     [switch]$ConfigureMinidumps,
     [switch]$OfflineSymbols
 )
@@ -499,6 +500,11 @@ try {
     Save-Text -Command { Get-CimInstance Win32_Processor | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("processor.txt")) -Description "processor inventory"
     Save-Text -Command { Get-CimInstance Win32_PhysicalMemory | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("memory.txt")) -Description "memory inventory"
     Save-Text -Command { Get-CimInstance Win32_DiskDrive | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("diskdrives.txt")) -Description "disk inventory"
+    Save-Text -Command { Get-Disk | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("get-disk.txt")) -Description "Get-Disk inventory"
+    Save-Text -Command { Get-PhysicalDisk | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("physicaldisk.txt")) -Description "physical disk inventory"
+    Save-Text -Command { Get-PhysicalDisk | Get-StorageReliabilityCounter | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("storage-reliability.txt")) -Description "storage reliability counters"
+    Save-Text -Command { Get-Volume | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("volumes.txt")) -Description "volume inventory"
+    Save-Text -Command { Get-Partition | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("partitions.txt")) -Description "partition inventory"
     Save-Text -Command { Get-CimInstance Win32_VideoController | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("videocontroller.txt")) -Description "GPU inventory"
     Save-Text -Command { Get-NetAdapter | Format-Table -AutoSize } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("netadapters.txt")) -Description "network adapter inventory"
     Save-Text -Command { Get-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Control\CrashControl" | Format-List * } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("crashcontrol.txt")) -Description "CrashControl settings"
@@ -508,6 +514,10 @@ try {
     Save-Text -Command { powercfg /devicequery wake_armed } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("powercfg-wake-armed.txt")) -Description "powercfg /devicequery wake_armed"
     Save-Text -Command { powercfg /waketimers } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("powercfg-waketimers.txt")) -Description "powercfg /waketimers"
     Save-Text -Command { driverquery /v /fo csv } -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("driverquery.csv")) -Description "driverquery"
+
+    if (-not $SkipStorageScan -and $env:SystemDrive) {
+        Save-External -FilePath "chkdsk.exe" -Arguments @($env:SystemDrive, "/scan") -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("chkdsk-system-drive-scan.txt")) -Description "online chkdsk scan"
+    }
 
     if (-not $SkipBatteryReport) {
         Save-External -FilePath "powercfg.exe" -Arguments @("/batteryreport", "/output", (Join-PathSafe -Path $reportsRoot -ChildPath @("batteryreport.html"))) -Path (Join-PathSafe -Path $reportsRoot -ChildPath @("batteryreport.log")) -Description "battery report"
@@ -565,6 +575,12 @@ try {
             "Reports\powercfg-lastwake.txt",
             "Reports\powercfg-wake-armed.txt",
             "Reports\powercfg-waketimers.txt",
+            "Reports\get-disk.txt",
+            "Reports\physicaldisk.txt",
+            "Reports\storage-reliability.txt",
+            "Reports\volumes.txt",
+            "Reports\partitions.txt",
+            "Reports\chkdsk-system-drive-scan.txt",
             "EventLogs\*.evtx",
             "Dumps\*"
         )

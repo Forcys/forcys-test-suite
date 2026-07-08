@@ -4,23 +4,46 @@ Forcys Test Suite is a collection of scripts and references for testing laptops 
 
 The first test is a PowerShell-based power stability run that uses Microsoft `pwrtest.exe` from the Windows Driver Kit, then exercises sleep, Modern Standby, and hibernation cycles while collecting useful diagnostics.
 
-## Download Or Update
+## One-Command Collection
 
 From an elevated PowerShell session, run:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 Invoke-WebRequest https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1 -OutFile $env:TEMP\install-forcys-test-suite.ps1
-& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite
+& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage
 ```
 
-To download/update the suite and immediately bootstrap the complete PwrTest setup:
+This downloads or updates the suite, runs the triage profile, and creates a zipped evidence bundle under `C:\ProgramData\Forcys\TestSuite\Runs`.
+
+To also allow Microsoft WDK/WDTF setup for PwrTest Modern Standby testing:
 
 ```powershell
-& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -SetupPwrTest -InstallFullWDK -InstallWdtf
+& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -InstallFullWDK -InstallWdtf
 ```
 
-The installer does not require Git. It updates the repository files while preserving local `tools` and `PwrTest-Logs` folders. `-InstallFullWDK` and `-InstallWdtf` are explicit because they install Microsoft tools and driver-test runtime components on the machine.
+The installer does not require Git. It updates repository-managed files, backs up replaced files to `install-backups`, and preserves local tools, logs, runs, zip bundles, dumps, reports, and analysis folders. `-InstallFullWDK` and `-InstallWdtf` are explicit because they install Microsoft tools and driver-test runtime components on the machine.
+
+Profiles:
+
+- `Quick`: preflight and safe collection with heavier scans skipped.
+- `Triage`: default field profile for vague BSOD, Kernel-Power, wake, storage, and power evidence.
+- `Full`: intended for longer power reproduction runs.
+
+After installation you can run the suite directly:
+
+```powershell
+cd C:\forcys-test-suite
+.\Invoke-Forcys.ps1 -Profile Triage
+```
+
+## Download Or Update Only
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+Invoke-WebRequest https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1 -OutFile $env:TEMP\install-forcys-test-suite.ps1
+& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite
+```
 
 ## Power Stability Test
 
