@@ -26,6 +26,9 @@ param(
     [ValidateRange(1, 86400)]
     [int]$SleepSeconds = 60,
 
+    [ValidateSet("Auto", "Native", "PwrTest")]
+    [string]$PowerEngine = "Auto",
+
     [ValidateRange(10, 3600)]
     [int]$EnergyDurationSeconds = 120,
 
@@ -267,6 +270,29 @@ function Find-InstalledPwrTest {
     }
 
     return $null
+}
+
+function Test-StagedPwrTestAvailable {
+    param([Parameter(Mandatory)][string]$PwrTestExe)
+
+    return (Test-Path -LiteralPath $PwrTestExe)
+}
+
+function Resolve-PowerEngine {
+    param(
+        [Parameter(Mandatory)][string]$RequestedEngine,
+        [Parameter(Mandatory)][string]$PwrTestExe
+    )
+
+    if ($RequestedEngine -ne "Auto") {
+        return $RequestedEngine
+    }
+
+    if (Find-InstalledPwrTest) {
+        return "PwrTest"
+    }
+
+    return "Native"
 }
 
 function Ensure-WdkPackage {
@@ -673,6 +699,121 @@ function Invoke-PwrTestRuns {
     }
 }
 
+function Register-WakeTask {
+    param(
+        [Parameter(Mandatory)][datetime]$WakeAt,
+        [Parameter(Mandatory)][string]$TaskName
+    )
+
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -Command `"exit 0`""
+    $trigger = New-ScheduledTaskTrigger -Once -At $WakeAt
+    $settings = New-ScheduledTaskSettingsSet -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -Compatibility Win8
+
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+}
+
+function Unregister-WakeTask {
+    param([Parameter(Mandatory)][string]$TaskName)
+
+    try {
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+    catch {
+    }
+}
+
+function Invoke-NativePowerTransition {
+    param(
+        [Parameter(Mandatory)][string]$Mode,
+        [Parameter(Mandatory)][int]$Cycle,
+        [Parameter(Mandatory)][int]$TotalCycles,
+        [Parameter(Mandatory)][int]$SleepDurationSeconds,
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    $wakeAt = (Get-Date).AddSeconds($SleepDurationSeconds)
+    $taskName = "ForcysTestSuiteWake-$Mode"
+    $logPath = Join-PathSafe -Path $Root -ChildPath @("Reports", "native-power-transitions.csv")
+
+    Ensure-ParentDirectory -Path $logPath
+    if (-not (Test-Path -LiteralPath $logPath)) {
+        "Timestamp,Mode,Cycle,TotalCycles,WakeAt,Result" | Out-File -LiteralPath $logPath -Encoding UTF8
+    }
+
+    Write-Host ("Native {0} cycle {1}/{2}. Wake task scheduled for {3}." -f $Mode, $Cycle, $TotalCycles, $wakeAt.ToString("yyyy-MM-dd HH:mm:ss"))
+
+    Register-WakeTask -WakeAt $wakeAt -TaskName $taskName
+    try {
+        if ($Mode -eq "Hibernate") {
+            rundll32.exe powrprof.dll,SetSuspendState Hibernate
+        }
+        else {
+            rundll32.exe powrprof.dll,SetSuspendState 0,1,0
+        }
+
+        Start-Sleep -Seconds 5
+        "$(Get-Date -Format o),$Mode,$Cycle,$TotalCycles,$($wakeAt.ToString("o")),Returned" | Out-File -LiteralPath $logPath -Encoding UTF8 -Append
+    }
+    catch {
+        "$(Get-Date -Format o),$Mode,$Cycle,$TotalCycles,$($wakeAt.ToString("o")),Failed: $($_.Exception.Message)" | Out-File -LiteralPath $logPath -Encoding UTF8 -Append
+        throw
+    }
+    finally {
+        Unregister-WakeTask -TaskName $taskName
+    }
+}
+
+function Invoke-NativePowerRuns {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [int]$SleepCycleCount,
+        [int]$HibernateCycleCount,
+        [int]$AwakeDurationSeconds,
+        [int]$SleepDurationSeconds,
+        [switch]$NoSleep,
+        [switch]$NoHibernate
+    )
+
+    $stateInfo = Get-PowerStateInfo -Root $Root
+
+    if (-not $NoSleep -and $SleepCycleCount -gt 0) {
+        if ($stateInfo.HasS3 -or $stateInfo.HasS0) {
+            Write-Section "Starting native sleep/standby test"
+            for ($cycle = 1; $cycle -le $SleepCycleCount; $cycle++) {
+                Invoke-NativePowerTransition -Mode "Sleep" -Cycle $cycle -TotalCycles $SleepCycleCount -SleepDurationSeconds $SleepDurationSeconds -Root $Root
+                if ($cycle -lt $SleepCycleCount) {
+                    Start-Sleep -Seconds $AwakeDurationSeconds
+                }
+            }
+        }
+        else {
+            Write-Warning "No clear sleep or Modern Standby support detected. Native sleep test skipped."
+        }
+    }
+
+    if (-not $NoHibernate -and $HibernateCycleCount -gt 0) {
+        if (-not $stateInfo.HasS4) {
+            Write-Host "Hibernate/S4 is not currently reported as available. Trying to enable hibernation."
+            Invoke-OptionalExternal -FilePath "powercfg.exe" -Arguments @("/hibernate", "on") -Description "enable hibernation"
+            Start-Sleep -Seconds 2
+            $stateInfo = Get-PowerStateInfo -Root $Root
+        }
+
+        if ($stateInfo.HasS4) {
+            Write-Section "Starting native hibernate test"
+            for ($cycle = 1; $cycle -le $HibernateCycleCount; $cycle++) {
+                Invoke-NativePowerTransition -Mode "Hibernate" -Cycle $cycle -TotalCycles $HibernateCycleCount -SleepDurationSeconds $SleepDurationSeconds -Root $Root
+                if ($cycle -lt $HibernateCycleCount) {
+                    Start-Sleep -Seconds $AwakeDurationSeconds
+                }
+            }
+        }
+        else {
+            Write-Warning "Hibernate/S4 is not available. Native hibernate test skipped."
+        }
+    }
+}
+
 function Export-AfterReports {
     param(
         [Parameter(Mandatory)][string]$Root,
@@ -766,41 +907,58 @@ if ($InstallFullWDK) {
     Ensure-FullWindowsDriverKit -PackageId $WdkWingetPackageId
 }
 
-Ensure-NuGet -NuGetExe $nuGetExe -Url $NuGetUrl -Force:$ForceRedownloadNuGet
-Test-NuGet -NuGetExe $nuGetExe
-
-Ensure-WdkPackage `
-    -NuGetExe $nuGetExe `
-    -WdkRoot $wdkRoot `
-    -PackageName $WdkPackage `
-    -Source $NuGetSource `
-    -PackageVersion $WdkPackageVersion `
-    -Force:$ForceRedownloadWDK
+$resolvedPowerEngine = Resolve-PowerEngine -RequestedEngine $PowerEngine -PwrTestExe $pwrTestExe
+Write-Host "Power engine: $resolvedPowerEngine"
 
 $installedPwrTest = Find-InstalledPwrTest
-if ($installedPwrTest) {
-    Write-Host "Using PwrTest from the installed Windows Driver Kit:"
-    Write-Host $installedPwrTest
-    $foundPwrTest = $installedPwrTest
+$foundPwrTest = $null
+
+if ($resolvedPowerEngine -eq "PwrTest") {
+    if ($installedPwrTest) {
+        Write-Host "Using PwrTest from the installed Windows Driver Kit:"
+        Write-Host $installedPwrTest
+        $foundPwrTest = $installedPwrTest
+    }
+    else {
+        Ensure-NuGet -NuGetExe $nuGetExe -Url $NuGetUrl -Force:$ForceRedownloadNuGet
+        Test-NuGet -NuGetExe $nuGetExe
+
+        Ensure-WdkPackage `
+            -NuGetExe $nuGetExe `
+            -WdkRoot $wdkRoot `
+            -PackageName $WdkPackage `
+            -Source $NuGetSource `
+            -PackageVersion $WdkPackageVersion `
+            -Force:$ForceRedownloadWDK
+
+        $foundPwrTest = Find-PwrTest -SearchRoot $wdkRoot
+    }
+
+    if (-not $foundPwrTest) {
+        throw "pwrtest.exe was not found. Install the full WDK with -InstallFullWDK or use -PowerEngine Native."
+    }
+
+    Ensure-PwrTestTool -SourcePwrTest $foundPwrTest -TargetPwrTest $pwrTestExe -Force:$ForceInstallPwrTest
+    Test-PwrTestSignature -PwrTestExe $pwrTestExe
+    Write-PwrTestRuntimePreflight
+
+    Write-Verbose "Skipping PwrTest help check during setup. PwrTest can return a nonzero code for help output when ETW requirements are not satisfied."
 }
 else {
-    $foundPwrTest = Find-PwrTest -SearchRoot $wdkRoot
+    Write-Host "Native power engine selected. No NuGet, WDK, or PwrTest download is required."
 }
 
-if (-not $foundPwrTest) {
-    throw "pwrtest.exe was not found under $wdkRoot after installing $WdkPackage."
-}
-
-Ensure-PwrTestTool -SourcePwrTest $foundPwrTest -TargetPwrTest $pwrTestExe -Force:$ForceInstallPwrTest
-Test-PwrTestSignature -PwrTestExe $pwrTestExe
-Write-PwrTestRuntimePreflight
-
-Write-Verbose "Skipping PwrTest help check during setup. PwrTest can return a nonzero code for help output when ETW requirements are not satisfied."
 
 if ($SetupOnly) {
     Write-Host ""
-    Write-Host "SetupOnly selected. PwrTest is ready:"
-    Write-Host $pwrTestExe
+    Write-Host "SetupOnly selected."
+    if ($resolvedPowerEngine -eq "PwrTest") {
+        Write-Host "PwrTest is ready:"
+        Write-Host $pwrTestExe
+    }
+    else {
+        Write-Host "Native power engine is ready. No external setup was needed."
+    }
     return
 }
 
@@ -817,15 +975,27 @@ try {
     Export-Baseline -Root $testRoot -EnergyDuration $EnergyDurationSeconds -NoEnergyReport:$SkipEnergyReport
     Export-EventLogs -Root $testRoot -Stage "before"
 
-    Invoke-PwrTestRuns `
-        -PwrTestExe $pwrTestExe `
-        -Root $testRoot `
-        -SleepCycleCount $SleepCycles `
-        -HibernateCycleCount $HibernateCycles `
-        -AwakeDurationSeconds $AwakeSeconds `
-        -SleepDurationSeconds $SleepSeconds `
-        -NoSleep:$SkipSleep `
-        -NoHibernate:$SkipHibernate
+    if ($resolvedPowerEngine -eq "PwrTest") {
+        Invoke-PwrTestRuns `
+            -PwrTestExe $pwrTestExe `
+            -Root $testRoot `
+            -SleepCycleCount $SleepCycles `
+            -HibernateCycleCount $HibernateCycles `
+            -AwakeDurationSeconds $AwakeSeconds `
+            -SleepDurationSeconds $SleepSeconds `
+            -NoSleep:$SkipSleep `
+            -NoHibernate:$SkipHibernate
+    }
+    else {
+        Invoke-NativePowerRuns `
+            -Root $testRoot `
+            -SleepCycleCount $SleepCycles `
+            -HibernateCycleCount $HibernateCycles `
+            -AwakeDurationSeconds $AwakeSeconds `
+            -SleepDurationSeconds $SleepSeconds `
+            -NoSleep:$SkipSleep `
+            -NoHibernate:$SkipHibernate
+    }
 
     Export-AfterReports -Root $testRoot -EnergyDuration $EnergyDurationSeconds -NoEnergyReport:$SkipEnergyReport
     Export-EventLogs -Root $testRoot -Stage "after"
