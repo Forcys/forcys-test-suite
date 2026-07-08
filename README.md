@@ -6,10 +6,10 @@ The first test is a PowerShell-based power stability run that uses Microsoft `pw
 
 ## One-Command Collection
 
-From an elevated PowerShell session, run this single command:
+Run this single command. If the shell is not elevated, it will request UAC elevation and continue:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-forcys-test-suite.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1' -OutFile $p -UseBasicParsing; & $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-forcys-test-suite.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1' -OutFile $p -UseBasicParsing; & $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -Elevate"
 ```
 
 This downloads or updates the suite, runs the triage profile, and creates a zipped evidence bundle plus `.sha256` checksum under `C:\ProgramData\Forcys\TestSuite\Runs`.
@@ -17,7 +17,7 @@ This downloads or updates the suite, runs the triage profile, and creates a zipp
 To also allow Microsoft WDK/WDTF setup for PwrTest Modern Standby testing:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-forcys-test-suite.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1' -OutFile $p -UseBasicParsing; & $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -InstallFullWDK -InstallWdtf"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-forcys-test-suite.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1' -OutFile $p -UseBasicParsing; & $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -InstallFullWDK -InstallWdtf -Elevate"
 ```
 
 The installer does not require Git. It updates repository-managed files, backs up replaced files to `install-backups`, and preserves local tools, logs, runs, zip bundles, dumps, reports, and analysis folders. `-InstallFullWDK` and `-InstallWdtf` are explicit because they install Microsoft tools and driver-test runtime components on the machine.
@@ -32,7 +32,7 @@ After installation you can run the suite directly:
 
 ```powershell
 cd C:\forcys-test-suite
-.\Invoke-Forcys.ps1 -Profile Triage
+.\Invoke-Forcys.ps1 -Profile Triage -Elevate
 ```
 
 ## Download Or Update Only

@@ -53,6 +53,7 @@ param(
     [switch]$SkipEnergyReport,
     [switch]$SkipDumpAnalysis,
     [switch]$ConfigureMinidumps,
+    [switch]$Elevate,
     [switch]$KeepUnzipped
 )
 
@@ -116,6 +117,80 @@ function Save-Json {
     $InputObject | ConvertTo-Json -Depth 10 | Out-File -LiteralPath $Path -Encoding UTF8
 }
 
+function Add-ProcessArgument {
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$Arguments,
+        [Parameter(Mandatory)][string]$Name,
+        [string]$Value
+    )
+
+    $Arguments.Add($Name) | Out-Null
+    if ($null -ne $Value) {
+        $Arguments.Add($Value) | Out-Null
+    }
+}
+
+function Add-ProcessSwitch {
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$Arguments,
+        [Parameter(Mandatory)][string]$Name,
+        [bool]$Enabled
+    )
+
+    if ($Enabled) {
+        $Arguments.Add($Name) | Out-Null
+    }
+}
+
+function ConvertTo-ProcessArgumentLine {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    return (($Arguments | ForEach-Object {
+        if ($_ -match '[\s"]') {
+            '"' + ($_ -replace '"', '\"') + '"'
+        }
+        else {
+            $_
+        }
+    }) -join " ")
+}
+
+function Start-ElevatedSelf {
+    $arguments = [System.Collections.Generic.List[string]]::new()
+    Add-ProcessArgument -Arguments $arguments -Name "-NoProfile" -Value $null
+    Add-ProcessArgument -Arguments $arguments -Name "-ExecutionPolicy" -Value "Bypass"
+    Add-ProcessArgument -Arguments $arguments -Name "-File" -Value $PSCommandPath
+    Add-ProcessArgument -Arguments $arguments -Name "-Profile" -Value $Profile
+    Add-ProcessArgument -Arguments $arguments -Name "-InstallRoot" -Value $InstallRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-ToolsRoot" -Value $ToolsRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-OutputRoot" -Value $OutputRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-LookbackDays" -Value ([string]$LookbackDays)
+    Add-ProcessArgument -Arguments $arguments -Name "-SleepCycles" -Value ([string]$SleepCycles)
+    Add-ProcessArgument -Arguments $arguments -Name "-HibernateCycles" -Value ([string]$HibernateCycles)
+    Add-ProcessArgument -Arguments $arguments -Name "-AwakeSeconds" -Value ([string]$AwakeSeconds)
+    Add-ProcessArgument -Arguments $arguments -Name "-SleepSeconds" -Value ([string]$SleepSeconds)
+    Add-ProcessArgument -Arguments $arguments -Name "-EnergyDurationSeconds" -Value ([string]$EnergyDurationSeconds)
+    if ($DebuggerPath) {
+        Add-ProcessArgument -Arguments $arguments -Name "-DebuggerPath" -Value $DebuggerPath
+    }
+    Add-ProcessSwitch -Arguments $arguments -Name "-InstallTools" -Enabled ([bool]$InstallTools)
+    Add-ProcessSwitch -Arguments $arguments -Name "-InstallFullWDK" -Enabled ([bool]$InstallFullWDK)
+    Add-ProcessSwitch -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallWdtf)
+    Add-ProcessSwitch -Arguments $arguments -Name "-SkipPwrTest" -Enabled ([bool]$SkipPwrTest)
+    Add-ProcessSwitch -Arguments $arguments -Name "-SkipKernelPower" -Enabled ([bool]$SkipKernelPower)
+    Add-ProcessSwitch -Arguments $arguments -Name "-SkipEnergyReport" -Enabled ([bool]$SkipEnergyReport)
+    Add-ProcessSwitch -Arguments $arguments -Name "-SkipDumpAnalysis" -Enabled ([bool]$SkipDumpAnalysis)
+    Add-ProcessSwitch -Arguments $arguments -Name "-ConfigureMinidumps" -Enabled ([bool]$ConfigureMinidumps)
+    Add-ProcessSwitch -Arguments $arguments -Name "-KeepUnzipped" -Enabled ([bool]$KeepUnzipped)
+
+    Write-Section "Requesting elevation"
+    Write-Host "A UAC prompt will open. The elevated process will continue the Forcys suite run."
+
+    $argumentLine = ConvertTo-ProcessArgumentLine -Arguments $arguments.ToArray()
+    $process = Start-Process -FilePath "powershell.exe" -ArgumentList $argumentLine -Verb RunAs -Wait -PassThru
+    exit $process.ExitCode
+}
+
 function Get-ForcysPreflight {
     param(
         [Parameter(Mandatory)][string]$RunRoot,
@@ -173,6 +248,10 @@ function Get-ForcysPreflight {
         Commands          = @($commandStatus)
         PowerStates       = $powerStates
     }
+}
+
+if ($Elevate -and -not (Test-IsAdministrator)) {
+    Start-ElevatedSelf
 }
 
 function Add-Argument {

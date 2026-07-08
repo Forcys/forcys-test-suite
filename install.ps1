@@ -30,6 +30,7 @@ param(
     [string]$Profile = "Triage",
     [switch]$InstallFullWDK,
     [switch]$InstallWdtf,
+    [switch]$Elevate,
     [switch]$CleanBackups
 )
 
@@ -70,6 +71,74 @@ function Ensure-Tls12 {
     }
 }
 
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Add-ProcessArgument {
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$Arguments,
+        [Parameter(Mandatory)][string]$Name,
+        [string]$Value
+    )
+
+    $Arguments.Add($Name) | Out-Null
+    if ($null -ne $Value) {
+        $Arguments.Add($Value) | Out-Null
+    }
+}
+
+function Add-ProcessSwitch {
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$Arguments,
+        [Parameter(Mandatory)][string]$Name,
+        [bool]$Enabled
+    )
+
+    if ($Enabled) {
+        $Arguments.Add($Name) | Out-Null
+    }
+}
+
+function ConvertTo-ProcessArgumentLine {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    return (($Arguments | ForEach-Object {
+        if ($_ -match '[\s"]') {
+            '"' + ($_ -replace '"', '\"') + '"'
+        }
+        else {
+            $_
+        }
+    }) -join " ")
+}
+
+function Start-ElevatedSelf {
+    $arguments = [System.Collections.Generic.List[string]]::new()
+    Add-ProcessArgument -Arguments $arguments -Name "-NoProfile" -Value $null
+    Add-ProcessArgument -Arguments $arguments -Name "-ExecutionPolicy" -Value "Bypass"
+    Add-ProcessArgument -Arguments $arguments -Name "-File" -Value $PSCommandPath
+    Add-ProcessArgument -Arguments $arguments -Name "-InstallRoot" -Value $InstallRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-ToolsRoot" -Value $ToolsRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-OutputRoot" -Value $OutputRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-RepositoryZipUrl" -Value $RepositoryZipUrl
+    Add-ProcessArgument -Arguments $arguments -Name "-Profile" -Value $Profile
+    Add-ProcessSwitch -Arguments $arguments -Name "-SetupPwrTest" -Enabled ([bool]$SetupPwrTest)
+    Add-ProcessSwitch -Arguments $arguments -Name "-RunSuite" -Enabled ([bool]$RunSuite)
+    Add-ProcessSwitch -Arguments $arguments -Name "-InstallFullWDK" -Enabled ([bool]$InstallFullWDK)
+    Add-ProcessSwitch -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallWdtf)
+    Add-ProcessSwitch -Arguments $arguments -Name "-CleanBackups" -Enabled ([bool]$CleanBackups)
+
+    Write-Section "Requesting elevation"
+    Write-Host "A UAC prompt will open. The elevated process will continue the Forcys setup/run."
+
+    $argumentLine = ConvertTo-ProcessArgumentLine -Arguments $arguments.ToArray()
+    $process = Start-Process -FilePath "powershell.exe" -ArgumentList $argumentLine -Verb RunAs -Wait -PassThru
+    exit $process.ExitCode
+}
+
 function Remove-ExistingRepoFile {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -104,6 +173,10 @@ function Test-PreserveInstallItem {
     }
 
     return $Item.Extension -in @(".zip", ".evtx", ".dmp", ".log")
+}
+
+if ($Elevate -and -not (Test-IsAdministrator)) {
+    Start-ElevatedSelf
 }
 
 $installRootPath = Resolve-DirectoryPath -Path $InstallRoot
@@ -212,9 +285,9 @@ try {
     Write-Host "Forcys Test Suite is ready:"
     Write-Host $installRootPath
     Write-Host ""
-    Write-Host "Run a short power test from an elevated PowerShell session:"
+    Write-Host "Run a short power test later:"
     Write-Host "cd `"$installRootPath`""
-    Write-Host ".\Invoke-Forcys.ps1 -Profile Triage"
+    Write-Host ".\Invoke-Forcys.ps1 -Profile Triage -Elevate"
 }
 finally {
     if (Test-Path -LiteralPath $tempRoot) {
