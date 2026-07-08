@@ -1,0 +1,29 @@
+﻿{
+    "CollectedAt":  {
+                        "value":  "\/Date(1783502833509)\/",
+                        "DisplayHint":  2,
+                        "DateTime":  "woensdag 8 juli 2026 11:27:13"
+                    },
+    "LookbackDays":  7,
+    "StartTime":  "\/Date(1782897808154)\/",
+    "OutputRoot":  "C:\\ProgramData\\Forcys\\TestSuite\\KernelPower-Logs\\KernelPower-20260708-112328",
+    "InterestingEventCount":  612,
+    "DumpAnalysisCount":  0,
+    "ConfigureMinidumps":  false,
+    "SymbolCache":  "C:\\ProgramData\\Forcys\\TestSuite\\Symbols",
+    "OfflineSymbols":  false,
+    "Files":  [
+                  "README.txt",
+                  "transcript.txt",
+                  "Reports\\interesting-events.csv",
+                  "Reports\\DumpAnalysis\\dump-analysis-summary.csv",
+                  "Reports\\DumpAnalysis\\*.analysis.txt",
+                  "Reports\\powercfg-a.txt",
+                  "Reports\\powercfg-requests.txt",
+                  "Reports\\powercfg-lastwake.txt",
+                  "Reports\\powercfg-wake-armed.txt",
+                  "Reports\\powercfg-waketimers.txt",
+                  "EventLogs\\*.evtx",
+                  "Dumps\\*"
+              ]
+}

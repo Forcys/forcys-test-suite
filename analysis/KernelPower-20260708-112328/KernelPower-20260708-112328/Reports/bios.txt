@@ -1,0 +1,40 @@
+﻿
+
+Status                         : OK
+Name                           : 0601
+Caption                        : 0601
+SMBIOSPresent                  : True
+Description                    : 0601
+InstallDate                    : 
+BuildNumber                    : 
+CodeSet                        : 
+IdentificationCode             : 
+LanguageEdition                : 
+Manufacturer                   : American Megatrends Inc.
+OtherTargetOS                  : 
+SerialNumber                   : System Serial Number
+SoftwareElementID              : 0601
+SoftwareElementState           : 3
+TargetOperatingSystem          : 0
+Version                        : ALASKA - 1072009
+PrimaryBIOS                    : True
+BiosCharacteristics            : {7, 11, 12, 15...}
+BIOSVersion                    : {ALASKA - 1072009, 0601, American Megatrends - 50011}
+CurrentLanguage                : en|US|iso8859-1
+EmbeddedControllerMajorVersion : 255
+EmbeddedControllerMinorVersion : 255
+InstallableLanguages           : 9
+ListOfLanguages                : {en|US|iso8859-1, fr|FR|iso8859-1, zh|TW|unicode, zh|CN|unicode...}
+ReleaseDate                    : 3-4-2020 02:00:00
+SMBIOSBIOSVersion              : 0601
+SMBIOSMajorVersion             : 3
+SMBIOSMinorVersion             : 2
+SystemBiosMajorVersion         : 6
+SystemBiosMinorVersion         : 1
+PSComputerName                 : 
+CimClass                       : root/cimv2:Win32_BIOS
+CimInstanceProperties          : {Caption, Description, InstallDate, Name...}
+CimSystemProperties            : Microsoft.Management.Infrastructure.CimSystemProperties
+
+
+

@@ -1,0 +1,190 @@
+﻿
+
+WindowsBuildLabEx                                       : 26100.1.amd64fre.ge_release.240331-1435
+WindowsCurrentVersion                                   : 6.3
+WindowsEditionId                                        : Professional
+WindowsInstallationType                                 : Client
+WindowsInstallDateFromRegistry                          : 24-8-2025 07:06:59
+WindowsProductId                                        : 00330-80000-00000-AA912
+WindowsProductName                                      : Windows 10 Pro
+WindowsRegisteredOrganization                           : 
+WindowsRegisteredOwner                                  : rutgervanessen@hotmail.com
+WindowsSystemRoot                                       : C:\WINDOWS
+WindowsVersion                                          : 2009
+OSDisplayVersion                                        : 25H2
+BiosCharacteristics                                     : {7, 11, 12, 15...}
+BiosBIOSVersion                                         : {ALASKA - 1072009, 0601, American Megatrends - 50011}
+BiosBuildNumber                                         : 
+BiosCaption                                             : 0601
+BiosCodeSet                                             : 
+BiosCurrentLanguage                                     : en|US|iso8859-1
+BiosDescription                                         : 0601
+BiosEmbeddedControllerMajorVersion                      : 255
+BiosEmbeddedControllerMinorVersion                      : 255
+BiosFirmwareType                                        : Uefi
+BiosIdentificationCode                                  : 
+BiosInstallableLanguages                                : 9
+BiosInstallDate                                         : 
+BiosLanguageEdition                                     : 
+BiosListOfLanguages                                     : {en|US|iso8859-1, fr|FR|iso8859-1, zh|TW|unicode, zh|CN|unico
+                                                          de...}
+BiosManufacturer                                        : American Megatrends Inc.
+BiosName                                                : 0601
+BiosOtherTargetOS                                       : 
+BiosPrimaryBIOS                                         : True
+BiosReleaseDate                                         : 3-4-2020 02:00:00
+BiosSeralNumber                                         : System Serial Number
+BiosSMBIOSBIOSVersion                                   : 0601
+BiosSMBIOSMajorVersion                                  : 3
+BiosSMBIOSMinorVersion                                  : 2
+BiosSMBIOSPresent                                       : True
+BiosSoftwareElementState                                : Running
+BiosStatus                                              : OK
+BiosSystemBiosMajorVersion                              : 6
+BiosSystemBiosMinorVersion                              : 1
+BiosTargetOperatingSystem                               : 0
+BiosVersion                                             : ALASKA - 1072009
+CsAdminPasswordStatus                                   : Unknown
+CsAutomaticManagedPagefile                              : True
+CsAutomaticResetBootOption                              : True
+CsAutomaticResetCapability                              : True
+CsBootOptionOnLimit                                     : 
+CsBootOptionOnWatchDog                                  : 
+CsBootROMSupported                                      : True
+CsBootStatus                                            : {0, 0, 0, 0...}
+CsBootupState                                           : Normal boot
+CsCaption                                               : RUTGER-PC
+CsChassisBootupState                                    : Safe
+CsChassisSKUNumber                                      : Default string
+CsCurrentTimeZone                                       : 120
+CsDaylightInEffect                                      : True
+CsDescription                                           : AT/AT COMPATIBLE
+CsDNSHostName                                           : Rutger-pc
+CsDomain                                                : WORKGROUP
+CsDomainRole                                            : StandaloneWorkstation
+CsEnableDaylightSavingsTime                             : True
+CsFrontPanelResetStatus                                 : Unknown
+CsHypervisorPresent                                     : False
+CsInfraredSupported                                     : False
+CsInitialLoadInfo                                       : 
+CsInstallDate                                           : 
+CsKeyboardPasswordStatus                                : Unknown
+CsLastLoadInfo                                          : 
+CsManufacturer                                          : ASUS
+CsModel                                                 : System Product Name
+CsName                                                  : RUTGER-PC
+CsNetworkAdapters                                       : {Ethernet, Ethernet 2}
+CsNetworkServerModeEnabled                              : True
+CsNumberOfLogicalProcessors                             : 12
+CsNumberOfProcessors                                    : 1
+CsProcessors                                            : {Intel(R) Core(TM) i5-10400 CPU @ 2.90GHz}
+CsOEMStringArray                                        : {Default string, Default string, ALLOSAURUS, Default string..
+                                                          .}
+CsPartOfDomain                                          : False
+CsPauseAfterReset                                       : -1
+CsPCSystemType                                          : Desktop
+CsPCSystemTypeEx                                        : Desktop
+CsPowerManagementCapabilities                           : 
+CsPowerManagementSupported                              : 
+CsPowerOnPasswordStatus                                 : Unknown
+CsPowerState                                            : Unknown
+CsPowerSupplyState                                      : Safe
+CsPrimaryOwnerContact                                   : 
+CsPrimaryOwnerName                                      : rutgervanessen@hotmail.com
+CsResetCapability                                       : Other
+CsResetCount                                            : -1
+CsResetLimit                                            : -1
+CsRoles                                                 : {LM_Workstation, LM_Server, NT}
+CsStatus                                                : OK
+CsSupportContactDescription                             : 
+CsSystemFamily                                          : Default string
+CsSystemSKUNumber                                       : SKU
+CsSystemType                                            : x64-based PC
+CsThermalState                                          : Safe
+CsTotalPhysicalMemory                                   : 17086898176
+CsPhyicallyInstalledMemory                              : 16777216
+CsUserName                                              : Rutger-pc\rutge
+CsWakeUpType                                            : PowerSwitch
+CsWorkgroup                                             : WORKGROUP
+OsName                                                  : Microsoft Windows 11 Pro
+OsType                                                  : WINNT
+OsOperatingSystemSKU                                    : 48
+OsVersion                                               : 10.0.26200
+OsCSDVersion                                            : 
+OsBuildNumber                                           : 26200
+OsHotFixes                                              : {KB5092427, KB5050575, KB5054156, KB5059093...}
+OsBootDevice                                            : \Device\HarddiskVolume1
+OsSystemDevice                                          : \Device\HarddiskVolume6
+OsSystemDirectory                                       : C:\WINDOWS\system32
+OsSystemDrive                                           : C:
+OsWindowsDirectory                                      : C:\WINDOWS
+OsCountryCode                                           : 31
+OsCurrentTimeZone                                       : 120
+OsLocaleID                                              : 0413
+OsLocale                                                : nl-NL
+OsLocalDateTime                                         : 8-7-2026 11:23:31
+OsLastBootUpTime                                        : 8-7-2026 09:22:11
+OsUptime                                                : 02:01:20.1585408
+OsBuildType                                             : Multiprocessor Free
+OsCodeSet                                               : 1252
+OsDataExecutionPreventionAvailable                      : True
+OsDataExecutionPrevention32BitApplications              : True
+OsDataExecutionPreventionDrivers                        : True
+OsDataExecutionPreventionSupportPolicy                  : OptIn
+OsDebug                                                 : False
+OsDistributed                                           : False
+OsEncryptionLevel                                       : 256
+OsForegroundApplicationBoost                            : Maximum
+OsTotalVisibleMemorySize                                : 16686424
+OsFreePhysicalMemory                                    : 10041948
+OsTotalVirtualMemorySize                                : 17735000
+OsFreeVirtualMemory                                     : 10046536
+OsInUseVirtualMemory                                    : 7688464
+OsTotalSwapSpaceSize                                    : 
+OsSizeStoredInPagingFiles                               : 1048576
+OsFreeSpaceInPagingFiles                                : 1036472
+OsPagingFiles                                           : {C:\pagefile.sys}
+OsHardwareAbstractionLayer                              : 10.0.26100.1
+OsInstallDate                                           : 24-8-2025 09:06:59
+OsManufacturer                                          : Microsoft Corporation
+OsMaxNumberOfProcesses                                  : 4294967295
+OsMaxProcessMemorySize                                  : 137438953344
+OsMuiLanguages                                          : {nl-NL}
+OsNumberOfLicensedUsers                                 : 0
+OsNumberOfProcesses                                     : 221
+OsNumberOfUsers                                         : 2
+OsOrganization                                          : 
+OsArchitecture                                          : 64 bits
+OsLanguage                                              : nl-NL
+OsProductSuites                                         : {TerminalServicesSingleSession}
+OsOtherTypeDescription                                  : 
+OsPAEEnabled                                            : 
+OsPortableOperatingSystem                               : False
+OsPrimary                                               : True
+OsProductType                                           : WorkStation
+OsRegisteredUser                                        : rutgervanessen@hotmail.com
+OsSerialNumber                                          : 00330-80000-00000-AA912
+OsServicePackMajorVersion                               : 0
+OsServicePackMinorVersion                               : 0
+OsStatus                                                : OK
+OsSuites                                                : {TerminalServices, TerminalServicesSingleSession}
+OsServerLevel                                           : 
+KeyboardLayout                                          : 00020409
+TimeZone                                                : (UTC+01:00) Amsterdam, Berlijn, Bern, Rome, Stockholm, Wenen
+LogonServer                                             : \\RUTGER-PC
+PowerPlatformRole                                       : Desktop
+HyperVisorPresent                                       : False
+HyperVRequirementDataExecutionPreventionAvailable       : True
+HyperVRequirementSecondLevelAddressTranslation          : True
+HyperVRequirementVirtualizationFirmwareEnabled          : False
+HyperVRequirementVMMonitorModeExtensions                : True
+DeviceGuardSmartStatus                                  : Off
+DeviceGuardRequiredSecurityProperties                   : 
+DeviceGuardAvailableSecurityProperties                  : 
+DeviceGuardSecurityServicesConfigured                   : 
+DeviceGuardSecurityServicesRunning                      : 
+DeviceGuardCodeIntegrityPolicyEnforcementStatus         : EnforcementMode
+DeviceGuardUserModeCodeIntegrityPolicyEnforcementStatus : Off
+
+
+

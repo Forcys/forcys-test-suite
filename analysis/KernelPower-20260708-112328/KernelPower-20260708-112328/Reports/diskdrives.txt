@@ -1,0 +1,116 @@
+﻿
+
+ConfigManagerErrorCode      : 0
+LastErrorCode               : 
+NeedsCleaning               : 
+Status                      : OK
+DeviceID                    : \\.\PHYSICALDRIVE1
+StatusInfo                  : 
+Partitions                  : 2
+BytesPerSector              : 512
+ConfigManagerUserConfig     : False
+DefaultBlockSize            : 
+Index                       : 1
+InstallDate                 : 
+InterfaceType               : IDE
+MaxBlockSize                : 
+MaxMediaSize                : 
+MinBlockSize                : 
+NumberOfMediaSupported      : 
+SectorsPerTrack             : 63
+Size                        : 960194511360
+TotalCylinders              : 116737
+TotalHeads                  : 255
+TotalSectors                : 1875379905
+TotalTracks                 : 29767935
+TracksPerCylinder           : 255
+Caption                     : KINGSTON SA400S37960G
+Description                 : Schijfstation
+Name                        : \\.\PHYSICALDRIVE1
+Availability                : 
+CreationClassName           : Win32_DiskDrive
+ErrorCleared                : 
+ErrorDescription            : 
+PNPDeviceID                 : SCSI\DISK&VEN_&PROD_KINGSTON_SA400S3\4&3688D565&0&020000
+PowerManagementCapabilities : 
+PowerManagementSupported    : 
+SystemCreationClassName     : Win32_ComputerSystem
+SystemName                  : RUTGER-PC
+Capabilities                : {3, 4, 10}
+CapabilityDescriptions      : {Random Access, Supports Writing, SMART Notification}
+CompressionMethod           : 
+ErrorMethodology            : 
+FirmwareRevision            : SAM22101
+Manufacturer                : (Standaardschijfstations)
+MediaLoaded                 : True
+MediaType                   : Fixed hard disk media
+Model                       : KINGSTON SA400S37960G
+SCSIBus                     : 2
+SCSILogicalUnit             : 0
+SCSIPort                    : 0
+SCSITargetId                : 0
+SerialNumber                : 50026B738384B1A6
+Signature                   : 
+PSComputerName              : 
+CimClass                    : root/cimv2:Win32_DiskDrive
+CimInstanceProperties       : {Caption, Description, InstallDate, Name...}
+CimSystemProperties         : Microsoft.Management.Infrastructure.CimSystemProperties
+
+ConfigManagerErrorCode      : 0
+LastErrorCode               : 
+NeedsCleaning               : 
+Status                      : OK
+DeviceID                    : \\.\PHYSICALDRIVE0
+StatusInfo                  : 
+Partitions                  : 3
+BytesPerSector              : 512
+ConfigManagerUserConfig     : False
+DefaultBlockSize            : 
+Index                       : 0
+InstallDate                 : 
+InterfaceType               : IDE
+MaxBlockSize                : 
+MaxMediaSize                : 
+MinBlockSize                : 
+NumberOfMediaSupported      : 
+SectorsPerTrack             : 63
+Size                        : 240054796800
+TotalCylinders              : 29185
+TotalHeads                  : 255
+TotalSectors                : 468857025
+TotalTracks                 : 7442175
+TracksPerCylinder           : 255
+Caption                     : KINGSTON SA400S37240G
+Description                 : Schijfstation
+Name                        : \\.\PHYSICALDRIVE0
+Availability                : 
+CreationClassName           : Win32_DiskDrive
+ErrorCleared                : 
+ErrorDescription            : 
+PNPDeviceID                 : SCSI\DISK&VEN_&PROD_KINGSTON_SA400S3\4&3688D565&0&000000
+PowerManagementCapabilities : 
+PowerManagementSupported    : 
+SystemCreationClassName     : Win32_ComputerSystem
+SystemName                  : RUTGER-PC
+Capabilities                : {3, 4, 10}
+CapabilityDescriptions      : {Random Access, Supports Writing, SMART Notification}
+CompressionMethod           : 
+ErrorMethodology            : 
+FirmwareRevision            : S1Z40102
+Manufacturer                : (Standaardschijfstations)
+MediaLoaded                 : True
+MediaType                   : Fixed hard disk media
+Model                       : KINGSTON SA400S37240G
+SCSIBus                     : 0
+SCSILogicalUnit             : 0
+SCSIPort                    : 0
+SCSITargetId                : 0
+SerialNumber                : 50026B77836C649A
+Signature                   : 
+PSComputerName              : 
+CimClass                    : root/cimv2:Win32_DiskDrive
+CimInstanceProperties       : {Caption, Description, InstallDate, Name...}
+CimSystemProperties         : Microsoft.Management.Infrastructure.CimSystemProperties
+
+
+

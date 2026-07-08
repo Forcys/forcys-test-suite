@@ -1,0 +1,73 @@
+﻿
+
+AdminPasswordStatus         : 3
+BootupState                 : Normal boot
+ChassisBootupState          : 3
+KeyboardPasswordStatus      : 3
+PowerOnPasswordStatus       : 3
+PowerSupplyState            : 3
+PowerState                  : 0
+FrontPanelResetStatus       : 3
+ThermalState                : 3
+Status                      : OK
+Name                        : RUTGER-PC
+PowerManagementCapabilities : 
+PowerManagementSupported    : 
+Caption                     : RUTGER-PC
+Description                 : AT/AT COMPATIBLE
+InstallDate                 : 
+CreationClassName           : Win32_ComputerSystem
+NameFormat                  : 
+PrimaryOwnerContact         : 
+PrimaryOwnerName            : rutgervanessen@hotmail.com
+Roles                       : {LM_Workstation, LM_Server, NT}
+InitialLoadInfo             : 
+LastLoadInfo                : 
+ResetCapability             : 1
+AutomaticManagedPagefile    : True
+AutomaticResetBootOption    : True
+AutomaticResetCapability    : True
+BootOptionOnLimit           : 
+BootOptionOnWatchDog        : 
+BootROMSupported            : True
+BootStatus                  : {0, 0, 0, 0...}
+ChassisSKUNumber            : Default string
+CurrentTimeZone             : 120
+DaylightInEffect            : True
+DNSHostName                 : Rutger-pc
+Domain                      : WORKGROUP
+DomainRole                  : 0
+EnableDaylightSavingsTime   : True
+HypervisorPresent           : False
+InfraredSupported           : False
+Manufacturer                : ASUS
+Model                       : System Product Name
+NetworkServerModeEnabled    : True
+NumberOfLogicalProcessors   : 12
+NumberOfProcessors          : 1
+OEMLogoBitmap               : 
+OEMStringArray              : {Default string, Default string, ALLOSAURUS, Default string...}
+PartOfDomain                : False
+PauseAfterReset             : -1
+PCSystemType                : 1
+PCSystemTypeEx              : 1
+ResetCount                  : -1
+ResetLimit                  : -1
+SupportContactDescription   : 
+SystemFamily                : Default string
+SystemSKUNumber             : SKU
+SystemStartupDelay          : 
+SystemStartupOptions        : 
+SystemStartupSetting        : 
+SystemType                  : x64-based PC
+TotalPhysicalMemory         : 17086898176
+UserName                    : Rutger-pc\rutge
+WakeUpType                  : 6
+Workgroup                   : WORKGROUP
+PSComputerName              : 
+CimClass                    : root/cimv2:Win32_ComputerSystem
+CimInstanceProperties       : {Caption, Description, InstallDate, Name...}
+CimSystemProperties         : Microsoft.Management.Infrastructure.CimSystemProperties
+
+
+

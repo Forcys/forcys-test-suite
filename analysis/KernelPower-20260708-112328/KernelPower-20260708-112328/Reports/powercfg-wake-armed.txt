@@ -1,0 +1,7 @@
+﻿Realtek PCIe GbE Family Controller
+HID-muis (001)
+NVIDIA USB Type-C Port Policy Controller
+TP-LINK Gigabit Ethernet USB Adapter
+HID-muis (003)
+HID-toetsenbordapparaat (002)
+

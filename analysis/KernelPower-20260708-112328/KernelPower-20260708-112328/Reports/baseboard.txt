@@ -1,0 +1,39 @@
+﻿
+
+Status                  : OK
+Name                    : Basiskaart
+PoweredOn               : True
+Caption                 : Basiskaart
+Description             : Basiskaart
+InstallDate             : 
+CreationClassName       : Win32_BaseBoard
+Manufacturer            : ASUSTeK COMPUTER INC.
+Model                   : 
+OtherIdentifyingInfo    : 
+PartNumber              : 
+SerialNumber            : 200468382605744
+SKU                     : 
+Tag                     : Base Board
+Version                 : Rev 1.xx
+Depth                   : 
+Height                  : 
+HotSwappable            : False
+Removable               : False
+Replaceable             : True
+Weight                  : 
+Width                   : 
+HostingBoard            : True
+RequirementsDescription : 
+RequiresDaughterBoard   : False
+SlotLayout              : 
+SpecialRequirements     : 
+ConfigOptions           : {SMI:00B29C05, DSN:                               ., DSN:                               ., DS
+                          N:                               .}
+Product                 : PRIME H410M-A
+PSComputerName          : 
+CimClass                : root/cimv2:Win32_BaseBoard
+CimInstanceProperties   : {Caption, Description, InstallDate, Name...}
+CimSystemProperties     : Microsoft.Management.Infrastructure.CimSystemProperties
+
+
+

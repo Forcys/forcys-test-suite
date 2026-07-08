@@ -1,0 +1,66 @@
+﻿
+
+Availability                            : 3
+CpuStatus                               : 1
+CurrentVoltage                          : 8
+DeviceID                                : CPU0
+ErrorCleared                            : 
+ErrorDescription                        : 
+LastErrorCode                           : 
+LoadPercentage                          : 5
+Status                                  : OK
+StatusInfo                              : 3
+AddressWidth                            : 64
+DataWidth                               : 64
+ExtClock                                : 100
+L2CacheSize                             : 1536
+L2CacheSpeed                            : 
+MaxClockSpeed                           : 2904
+PowerManagementSupported                : False
+ProcessorType                           : 3
+Revision                                : 
+SocketDesignation                       : LGA1200
+Version                                 : 
+VoltageCaps                             : 
+Caption                                 : Intel64 Family 6 Model 165 Stepping 3
+Description                             : Intel64 Family 6 Model 165 Stepping 3
+InstallDate                             : 
+Name                                    : Intel(R) Core(TM) i5-10400 CPU @ 2.90GHz
+ConfigManagerErrorCode                  : 
+ConfigManagerUserConfig                 : 
+CreationClassName                       : Win32_Processor
+PNPDeviceID                             : 
+PowerManagementCapabilities             : 
+SystemCreationClassName                 : Win32_ComputerSystem
+SystemName                              : RUTGER-PC
+CurrentClockSpeed                       : 2904
+Family                                  : 205
+OtherFamilyDescription                  : 
+Role                                    : CPU
+Stepping                                : 
+UniqueId                                : 
+UpgradeMethod                           : 1
+Architecture                            : 9
+AssetTag                                : To Be Filled By O.E.M.
+Characteristics                         : 252
+L3CacheSize                             : 12288
+L3CacheSpeed                            : 0
+Level                                   : 6
+Manufacturer                            : GenuineIntel
+NumberOfCores                           : 6
+NumberOfEnabledCore                     : 6
+NumberOfLogicalProcessors               : 12
+PartNumber                              : To Be Filled By O.E.M.
+ProcessorId                             : BFEBFBFF000A0653
+SecondLevelAddressTranslationExtensions : True
+SerialNumber                            : To Be Filled By O.E.M.
+ThreadCount                             : 12
+VirtualizationFirmwareEnabled           : False
+VMMonitorModeExtensions                 : True
+PSComputerName                          : 
+CimClass                                : root/cimv2:Win32_Processor
+CimInstanceProperties                   : {Caption, Description, InstallDate, Name...}
+CimSystemProperties                     : Microsoft.Management.Infrastructure.CimSystemProperties
+
+
+
