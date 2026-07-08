@@ -26,8 +26,8 @@ The installer does not require Git. It updates repository-managed files, backs u
 
 Profiles:
 
-- `Quick`: preflight and safe collection with heavier scans skipped.
-- `Triage`: default field profile for vague BSOD, Kernel-Power, wake, storage, and power evidence.
+- `Quick`: preflight, safe collection, and PwrTest setup/capability check with heavier scans and power cycles skipped.
+- `Triage`: default field profile for vague BSOD, Kernel-Power, wake, storage, and short PwrTest power evidence.
 - `Full`: intended for longer power reproduction runs.
 
 After installation you can run the suite directly:

@@ -377,9 +377,11 @@ if (-not $SkipPwrTest) {
         Add-SwitchArgument -Arguments $arguments -Name "-SkipEnergyReport" -Enabled ([bool]$SkipEnergyReport -or $Profile -eq "Quick")
 
         if ($Profile -eq "Quick") {
+            Add-Argument -Arguments $arguments -Name "-PowerEngine" -Value "Auto"
             Add-Argument -Arguments $arguments -Name "-SleepCycles" -Value 0
             Add-Argument -Arguments $arguments -Name "-HibernateCycles" -Value 0
             Add-SwitchArgument -Arguments $arguments -Name "-SetupOnly" -Enabled $true
+            Add-SwitchArgument -Arguments $arguments -Name "-SkipAdminCheck" -Enabled (-not $isAdministrator)
         }
         else {
             Add-Argument -Arguments $arguments -Name "-SleepCycles" -Value $SleepCycles

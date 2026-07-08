@@ -1097,6 +1097,11 @@ if ($resolvedPowerEngine -eq "PwrTest") {
         Write-Host $installedPwrTest
         $foundPwrTest = $installedPwrTest
     }
+    elseif ((Test-StagedPwrTestAvailable -PwrTestExe $pwrTestExe) -and -not $ForceInstallPwrTest) {
+        Write-Host "Using already staged PwrTest:"
+        Write-Host $pwrTestExe
+        $foundPwrTest = $pwrTestExe
+    }
     else {
         Ensure-NuGet -NuGetExe $nuGetExe -Url $NuGetUrl -Force:$ForceRedownloadNuGet
         Test-NuGet -NuGetExe $nuGetExe
@@ -1116,7 +1121,9 @@ if ($resolvedPowerEngine -eq "PwrTest") {
         throw "pwrtest.exe was not found. Install the full WDK with -InstallFullWDK or use -PowerEngine Native."
     }
 
-    Ensure-PwrTestTool -SourcePwrTest $foundPwrTest -TargetPwrTest $pwrTestExe -Force:$ForceInstallPwrTest
+    if ($foundPwrTest -ne $pwrTestExe) {
+        Ensure-PwrTestTool -SourcePwrTest $foundPwrTest -TargetPwrTest $pwrTestExe -Force:$ForceInstallPwrTest
+    }
     Test-PwrTestSignature -PwrTestExe $pwrTestExe
     Write-PwrTestRuntimePreflight
 
