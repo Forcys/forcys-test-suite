@@ -1,7 +1,0 @@
-﻿
-Name       InterfaceDescription                 ifIndex Status       MacAddress        LinkSpeed
-----       --------------------                 ------- ------       ----------        ---------
-Ethernet   Realtek PCIe GbE Family Controller         5 Disconnected D4-5D-64-B4-27-2D     0 bps
-Ethernet 2 TP-LINK Gigabit Ethernet USB Adapter      25 Up           B0-A7-B9-1F-54-EE    1 Gbps
-
-

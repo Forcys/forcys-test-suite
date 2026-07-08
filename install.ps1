@@ -16,6 +16,12 @@ param(
     [string]$InstallRoot = "C:\forcys-test-suite",
 
     [ValidateNotNullOrEmpty()]
+    [string]$ToolsRoot = (Join-Path $env:ProgramData "Forcys\TestSuite"),
+
+    [ValidateNotNullOrEmpty()]
+    [string]$OutputRoot = (Join-Path $env:ProgramData "Forcys\TestSuite\Runs"),
+
+    [ValidateNotNullOrEmpty()]
     [string]$RepositoryZipUrl = "https://github.com/Forcys/forcys-test-suite/archive/refs/heads/main.zip",
 
     [switch]$SetupPwrTest,
@@ -24,7 +30,7 @@ param(
     [string]$Profile = "Triage",
     [switch]$InstallFullWDK,
     [switch]$InstallWdtf,
-    [switch]$Force
+    [switch]$CleanBackups
 )
 
 Set-StrictMode -Version Latest
@@ -101,6 +107,8 @@ function Test-PreserveInstallItem {
 }
 
 $installRootPath = Resolve-DirectoryPath -Path $InstallRoot
+$toolsRootPath = Resolve-DirectoryPath -Path $ToolsRoot
+$outputRootPath = Resolve-DirectoryPath -Path $OutputRoot
 $tempRoot = Join-Path $env:TEMP ("forcys-test-suite-install-" + [guid]::NewGuid().ToString())
 $zipPath = Join-Path $tempRoot "forcys-test-suite.zip"
 $extractRoot = Join-Path $tempRoot "extract"
@@ -135,7 +143,10 @@ try {
         }
 
         $targetPath = Join-Path $installRootPath $sourceItem.Name
-        Remove-ExistingRepoFile -Path $targetPath -BackupRoot $backupRoot
+        if (Test-Path -LiteralPath $targetPath) {
+            Remove-ExistingRepoFile -Path $targetPath -BackupRoot $backupRoot
+        }
+
         Copy-Item -LiteralPath $sourceItem.FullName -Destination $targetPath -Recurse -Force
         Write-Host "Updated $($sourceItem.Name)"
     }
@@ -143,6 +154,10 @@ try {
     if (Test-Path -LiteralPath $backupRoot) {
         Write-Host "Previous repo-managed files were backed up to:"
         Write-Host $backupRoot
+        if ($CleanBackups) {
+            Remove-Item -LiteralPath $backupRoot -Recurse -Force
+            Write-Host "CleanBackups selected. Removed this run's backup folder."
+        }
     }
 
     if ($SetupPwrTest) {
@@ -152,7 +167,7 @@ try {
             throw "PwrTest script not found after update: $pwrTestScript"
         }
 
-        $setupArguments = @("-ExecutionPolicy", "Bypass", "-File", $pwrTestScript, "-SetupOnly")
+        $setupArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $pwrTestScript, "-SetupOnly", "-ToolsRoot", $toolsRootPath, "-OutputRoot", (Join-Path $outputRootPath "PwrTest-Setup"))
         if ($InstallFullWDK) {
             $setupArguments += "-InstallFullWDK"
         }
@@ -174,7 +189,7 @@ try {
             throw "Forcys suite entry point not found after update: $suiteScript"
         }
 
-        $suiteArguments = @("-ExecutionPolicy", "Bypass", "-File", $suiteScript, "-Profile", $Profile, "-InstallRoot", $installRootPath)
+        $suiteArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $suiteScript, "-Profile", $Profile, "-InstallRoot", $installRootPath, "-ToolsRoot", $toolsRootPath, "-OutputRoot", $outputRootPath)
         if ($InstallFullWDK -or $InstallWdtf) {
             $suiteArguments += "-InstallTools"
         }

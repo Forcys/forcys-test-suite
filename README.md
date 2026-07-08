@@ -6,20 +6,18 @@ The first test is a PowerShell-based power stability run that uses Microsoft `pw
 
 ## One-Command Collection
 
-From an elevated PowerShell session, run:
+From an elevated PowerShell session, run this single command:
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-Invoke-WebRequest https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1 -OutFile $env:TEMP\install-forcys-test-suite.ps1
-& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-forcys-test-suite.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1' -OutFile $p -UseBasicParsing; & $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage"
 ```
 
-This downloads or updates the suite, runs the triage profile, and creates a zipped evidence bundle under `C:\ProgramData\Forcys\TestSuite\Runs`.
+This downloads or updates the suite, runs the triage profile, and creates a zipped evidence bundle plus `.sha256` checksum under `C:\ProgramData\Forcys\TestSuite\Runs`.
 
 To also allow Microsoft WDK/WDTF setup for PwrTest Modern Standby testing:
 
 ```powershell
-& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -InstallFullWDK -InstallWdtf
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-forcys-test-suite.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1' -OutFile $p -UseBasicParsing; & $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -InstallFullWDK -InstallWdtf"
 ```
 
 The installer does not require Git. It updates repository-managed files, backs up replaced files to `install-backups`, and preserves local tools, logs, runs, zip bundles, dumps, reports, and analysis folders. `-InstallFullWDK` and `-InstallWdtf` are explicit because they install Microsoft tools and driver-test runtime components on the machine.
@@ -40,9 +38,7 @@ cd C:\forcys-test-suite
 ## Download Or Update Only
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-Invoke-WebRequest https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1 -OutFile $env:TEMP\install-forcys-test-suite.ps1
-& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-forcys-test-suite.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1' -OutFile $p -UseBasicParsing; & $p -InstallRoot C:\forcys-test-suite"
 ```
 
 ## Power Stability Test

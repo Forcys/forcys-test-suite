@@ -1,7 +1,15 @@
 # Local tool cache and test output
 tools/
 PwrTest-Logs/
+KernelPower-Logs/
+Runs/
+analysis/
+analysis/pwrtest-setup-check/
 Forcys-PwrTest-*/
+Forcys-TestSuite-*/
+Forcys-TestSuite-*.zip
+KernelPower-*.zip
+*.zip.sha256
 *.evtx
 *.dmp
 *.nfo

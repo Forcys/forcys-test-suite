@@ -425,6 +425,9 @@ if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
 }
 Compress-Archive -LiteralPath $runRoot -DestinationPath $zipPath -Force
+$zipHash = Get-FileHash -LiteralPath $zipPath -Algorithm SHA256
+$zipHashPath = "$zipPath.sha256"
+"$($zipHash.Hash)  $(Split-Path -Path $zipPath -Leaf)" | Out-File -LiteralPath $zipHashPath -Encoding ASCII
 
 if (-not $KeepUnzipped) {
     Write-Host "Unzipped run folder kept for review:"
@@ -434,6 +437,8 @@ if (-not $KeepUnzipped) {
 Write-Section "Done"
 Write-Host "Zip bundle:"
 Write-Host $zipPath
+Write-Host "Zip SHA256:"
+Write-Host $zipHash.Hash
 Write-Host ""
 Write-Host "Run manifest:"
 Write-Host (Join-PathSafe -Path $runRoot -ChildPath @("RunManifest.json"))
