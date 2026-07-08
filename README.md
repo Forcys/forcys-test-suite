@@ -2,7 +2,7 @@
 
 Forcys Test Suite is a collection of scripts and references for testing laptops and computers.
 
-The first test is a PowerShell-based power stability run that bootstraps `pwrtest.exe` from the Windows Driver Kit NuGet package, then exercises sleep, Modern Standby, and hibernation cycles while collecting useful diagnostics.
+The first test is a PowerShell-based power stability run that uses Microsoft `pwrtest.exe` from the Windows Driver Kit, then exercises sleep, Modern Standby, and hibernation cycles while collecting useful diagnostics.
 
 ## Download Or Update
 
@@ -14,13 +14,13 @@ Invoke-WebRequest https://raw.githubusercontent.com/Forcys/forcys-test-suite/mai
 & $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite
 ```
 
-To download/update the suite and immediately bootstrap PwrTest:
+To download/update the suite and immediately bootstrap the complete PwrTest setup:
 
 ```powershell
-& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -SetupPwrTest
+& $env:TEMP\install-forcys-test-suite.ps1 -InstallRoot C:\forcys-test-suite -SetupPwrTest -InstallFullWDK -InstallWdtf
 ```
 
-The installer does not require Git. It updates the repository files while preserving local `tools` and `PwrTest-Logs` folders.
+The installer does not require Git. It updates the repository files while preserving local `tools` and `PwrTest-Logs` folders. `-InstallFullWDK` and `-InstallWdtf` are explicit because they install Microsoft tools and driver-test runtime components on the machine.
 
 ## Power Stability Test
 
@@ -37,24 +37,24 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly
 ```
 
-By default, `-PowerEngine Auto` uses a lightweight native Windows engine unless a full Windows Driver Kit PwrTest install is already detected. The native engine does not download NuGet, WDK, or PwrTest; it uses Windows wake-capable scheduled tasks plus built-in sleep/hibernate calls.
-
-To force the lightweight native engine:
+By default, the script uses Microsoft PwrTest. For the most complete setup, install the full Windows Driver Kit and WDTF runtime:
 
 ```powershell
-.\scripts\Invoke-ForcysPwrTest.ps1 -PowerEngine Native -SleepCycles 2 -HibernateCycles 1 -AwakeSeconds 60 -SleepSeconds 30
+.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallFullWDK -InstallWdtf
 ```
 
-If PwrTest exits with code `1285`, install the full Windows Driver Kit and set up again:
+WDTF is the Windows Driver Testing Framework. PwrTest's Modern Standby `/cs` mode needs the WDTF virtual power button driver. If the driver is missing, the script skips Modern Standby instead of failing the whole run.
+
+If the full WDK is already installed and you only need to add/check WDTF:
 
 ```powershell
-.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -PowerEngine PwrTest -InstallFullWDK
+.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallWdtf
 ```
 
 By default the script auto-selects a winget WDK package based on the Windows build. To install a specific WDK package:
 
 ```powershell
-.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -PowerEngine PwrTest -InstallFullWDK -WdkWingetPackageId Microsoft.WindowsWDK.10.0.28000
+.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallFullWDK -InstallWdtf -WdkWingetPackageId Microsoft.WindowsWDK.10.0.28000
 ```
 
 Auto-selection mapping:
@@ -82,6 +82,12 @@ Run defaults are intentionally longer:
 
 ```powershell
 .\scripts\Invoke-ForcysPwrTest.ps1 -SleepCycles 50 -HibernateCycles 25 -AwakeSeconds 120 -SleepSeconds 60
+```
+
+To force the lightweight native fallback engine instead of PwrTest:
+
+```powershell
+.\scripts\Invoke-ForcysPwrTest.ps1 -PowerEngine Native -SleepCycles 2 -HibernateCycles 1 -AwakeSeconds 60 -SleepSeconds 30
 ```
 
 ## Kernel-Power Collection

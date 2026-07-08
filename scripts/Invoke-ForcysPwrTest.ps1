@@ -27,7 +27,7 @@ param(
     [int]$SleepSeconds = 60,
 
     [ValidateSet("Auto", "Native", "PwrTest")]
-    [string]$PowerEngine = "Auto",
+    [string]$PowerEngine = "PwrTest",
 
     [ValidateRange(10, 3600)]
     [int]$EnergyDurationSeconds = 120,
@@ -53,6 +53,8 @@ param(
     [string]$WdkPackageVersion,
 
     [switch]$InstallFullWDK,
+    [switch]$InstallWdtf,
+    [string]$WdtfInstallerPath,
     [switch]$SetupOnly,
     [switch]$SkipSleep,
     [switch]$SkipHibernate,
@@ -272,6 +274,157 @@ function Find-InstalledPwrTest {
     return $null
 }
 
+function Get-WindowsKitRoots {
+    $roots = @(
+        "${env:ProgramFiles(x86)}\Windows Kits\10",
+        "$env:ProgramFiles\Windows Kits\10"
+    )
+
+    $installedPwrTest = Find-InstalledPwrTest
+    if ($installedPwrTest -and $installedPwrTest -match "^(.*\\Windows Kits\\10)\\") {
+        $roots += $Matches[1]
+    }
+
+    return $roots |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) } |
+        Select-Object -Unique
+}
+
+function Find-WdtfRuntimeInstaller {
+    param([string]$ExplicitPath)
+
+    if ($ExplicitPath) {
+        $resolvedPath = Resolve-DirectoryPath -Path $ExplicitPath
+        if (-not (Test-Path -LiteralPath $resolvedPath)) {
+            throw "The WDTF installer path does not exist: $ExplicitPath"
+        }
+
+        return $resolvedPath
+    }
+
+    $candidateRoots = foreach ($kitRoot in Get-WindowsKitRoots) {
+        Join-PathSafe -Path $kitRoot -ChildPath @("Testing", "Runtimes", "WDTF")
+        Join-PathSafe -Path $kitRoot -ChildPath @("Testing", "Runtimes")
+        Join-PathSafe -Path $kitRoot -ChildPath @("Redist")
+        $kitRoot
+    }
+
+    $installers = foreach ($candidateRoot in ($candidateRoots | Select-Object -Unique)) {
+        if (Test-Path -LiteralPath $candidateRoot) {
+            Get-ChildItem -LiteralPath $candidateRoot -Recurse -File -Filter "*.msi" -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match "WDTF|Windows.*Driver.*Testing|Desktop.*Kit" }
+        }
+    }
+
+    if (-not $installers) {
+        return $null
+    }
+
+    $architecturePattern = if ([Environment]::Is64BitOperatingSystem) { "x64|amd64" } else { "x86" }
+    $preferred = $installers |
+        Sort-Object @{
+            Expression = {
+                $score = 0
+                if ($_.Name -match "WDTF") { $score += 100 }
+                if ($_.Name -match "Desktop") { $score += 50 }
+                if ($_.Name -match $architecturePattern) { $score += 25 }
+                $score
+            }
+            Descending = $true
+        }, FullName |
+        Select-Object -First 1
+
+    return $preferred.FullName
+}
+
+function Test-WdtfRuntimeInstalled {
+    $uninstallRoots = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+
+    foreach ($uninstallRoot in $uninstallRoots) {
+        $match = Get-ItemProperty -Path $uninstallRoot -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.DisplayName -match "WDTF|Windows Driver Test|Windows Driver Testing Framework"
+            } |
+            Select-Object -First 1
+
+        if ($match) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-WdtfVirtualPowerButtonInstalled {
+    $wdtfPowerPattern = "WDTF.*(Power|Button)|Virtual.*Power.*Button|Power.*Button.*WDTF"
+
+    try {
+        $signedDriver = Get-CimInstance Win32_PnPSignedDriver -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.DeviceName -match $wdtfPowerPattern -or
+                (($_.DriverProviderName -match "WDTF|Windows Driver Test") -and ($_.DeviceName -match "Power|Button"))
+            } |
+            Select-Object -First 1
+
+        if ($signedDriver) {
+            return $true
+        }
+    }
+    catch {
+    }
+
+    $getPnpDevice = Get-Command Get-PnpDevice -ErrorAction SilentlyContinue
+    if ($getPnpDevice) {
+        try {
+            $pnpDevice = Get-PnpDevice -ErrorAction SilentlyContinue |
+                Where-Object { "$($_.FriendlyName) $($_.InstanceId)" -match $wdtfPowerPattern } |
+                Select-Object -First 1
+
+            if ($pnpDevice) {
+                return $true
+            }
+        }
+        catch {
+        }
+    }
+
+    return $false
+}
+
+function Ensure-WdtfRuntime {
+    param([string]$InstallerPath)
+
+    Write-Section "Checking WDTF runtime"
+
+    if (Test-WdtfRuntimeInstalled) {
+        Write-Host "WDTF runtime already appears to be installed."
+    }
+    else {
+        $installer = Find-WdtfRuntimeInstaller -ExplicitPath $InstallerPath
+        if (-not $installer) {
+            throw "WDTF runtime installer was not found under the Windows Kits folder. Install the full Windows Driver Kit, then rerun with -InstallWdtf. You can also pass -WdtfInstallerPath if you know the MSI path."
+        }
+
+        Write-Host "Installing WDTF runtime:"
+        Write-Host $installer
+        $exitCode = Invoke-External -FilePath "msiexec.exe" -Arguments @("/i", $installer, "/qn", "/norestart") -AllowedExitCodes @(0, 3010, 1641)
+
+        if ($exitCode -in @(3010, 1641)) {
+            Write-Warning "WDTF install requested a reboot. Reboot before running Modern Standby /cs tests."
+        }
+    }
+
+    if (Test-WdtfVirtualPowerButtonInstalled) {
+        Write-Host "WDTF virtual power button is present."
+    }
+    else {
+        Write-Warning "WDTF runtime was handled, but the virtual power button is not visible yet. A reboot or WDK/WDTF repair may be required before PwrTest /cs can run."
+    }
+}
+
 function Test-StagedPwrTestAvailable {
     param([Parameter(Mandatory)][string]$PwrTestExe)
 
@@ -288,7 +441,7 @@ function Resolve-PowerEngine {
         return $RequestedEngine
     }
 
-    if (Find-InstalledPwrTest) {
+    if ((Find-InstalledPwrTest) -or (Test-StagedPwrTestAvailable -PwrTestExe $PwrTestExe)) {
         return "PwrTest"
     }
 
@@ -398,6 +551,12 @@ function Write-PwrTestRuntimePreflight {
     if ($installedPwrTest) {
         Write-Host "Full Windows Driver Kit PwrTest detected:"
         Write-Host $installedPwrTest
+        if (Test-WdtfVirtualPowerButtonInstalled) {
+            Write-Host "WDTF virtual power button detected for PwrTest Modern Standby /cs."
+        }
+        else {
+            Write-Warning "WDTF virtual power button was not detected. Modern Standby /cs requires WDTF; run setup with -InstallWdtf if you need S0 testing."
+        }
         return
     }
 
@@ -678,7 +837,14 @@ function Invoke-PwrTestRuns {
         }
         elseif ($stateInfo.HasS0) {
             Write-Section "Starting Modern Standby test"
-            Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/lf:$pwrTestLogRoot", "/ln:connected-standby") -Name "Modern Standby test" | Out-Null
+            if (Test-WdtfVirtualPowerButtonInstalled) {
+                Invoke-PwrTestScenario -PwrTestExe $PwrTestExe -Arguments @("/cs", "/c:$SleepCycleCount", "/d:$AwakeDurationSeconds", "/p:$SleepDurationSeconds", "/lf:$pwrTestLogRoot", "/ln:connected-standby") -Name "Modern Standby test" | Out-Null
+            }
+            else {
+                Write-Warning "Modern Standby /cs requires the WDTF virtual power button driver, but it was not detected."
+                Write-Warning "Run setup as Administrator with: .\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallFullWDK -InstallWdtf"
+                Write-Warning "Sleep test skipped so hibernate and after-test reports can still run."
+            }
         }
         else {
             Write-Warning "No clear S3 or Modern Standby support detected. Sleep test skipped."
@@ -905,6 +1071,18 @@ Write-Section "Forcys PwrTest setup"
 
 if ($InstallFullWDK) {
     Ensure-FullWindowsDriverKit -PackageId $WdkWingetPackageId
+}
+
+if ($InstallWdtf) {
+    if (-not (Find-InstalledPwrTest)) {
+        if ($InstallFullWDK) {
+            throw "Windows Driver Kit installation did not expose pwrtest.exe, so WDTF setup cannot continue."
+        }
+
+        throw "WDTF setup requires the full Windows Driver Kit. Rerun with -InstallFullWDK -InstallWdtf, or install WDK manually and rerun with -InstallWdtf."
+    }
+
+    Ensure-WdtfRuntime -InstallerPath $WdtfInstallerPath
 }
 
 $resolvedPowerEngine = Resolve-PowerEngine -RequestedEngine $PowerEngine -PwrTestExe $pwrTestExe

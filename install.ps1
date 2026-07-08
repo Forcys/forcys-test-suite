@@ -19,6 +19,8 @@ param(
     [string]$RepositoryZipUrl = "https://github.com/Forcys/forcys-test-suite/archive/refs/heads/main.zip",
 
     [switch]$SetupPwrTest,
+    [switch]$InstallFullWDK,
+    [switch]$InstallWdtf,
     [switch]$Force
 )
 
@@ -134,7 +136,16 @@ try {
             throw "PwrTest script not found after update: $pwrTestScript"
         }
 
-        & powershell.exe -ExecutionPolicy Bypass -File $pwrTestScript -SetupOnly
+        $setupArguments = @("-ExecutionPolicy", "Bypass", "-File", $pwrTestScript, "-SetupOnly")
+        if ($InstallFullWDK) {
+            $setupArguments += "-InstallFullWDK"
+        }
+
+        if ($InstallWdtf) {
+            $setupArguments += "-InstallWdtf"
+        }
+
+        & powershell.exe @setupArguments
         if ($LASTEXITCODE -ne 0) {
             throw "PwrTest setup failed with exit code $LASTEXITCODE."
         }
