@@ -79,7 +79,7 @@ function Test-IsAdministrator {
 
 function Add-ProcessArgument {
     param(
-        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$Arguments,
+        [System.Collections.Generic.List[string]]$Arguments,
         [Parameter(Mandatory)][string]$Name,
         [string]$Value
     )
@@ -92,7 +92,7 @@ function Add-ProcessArgument {
 
 function Add-ProcessSwitch {
     param(
-        [Parameter(Mandatory)][System.Collections.Generic.List[string]]$Arguments,
+        [System.Collections.Generic.List[string]]$Arguments,
         [Parameter(Mandatory)][string]$Name,
         [bool]$Enabled
     )
