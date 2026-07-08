@@ -120,9 +120,9 @@ function Start-ElevatedSelf {
     Add-ProcessArgument -Arguments $arguments -Name "-NoProfile" -Value $null
     Add-ProcessArgument -Arguments $arguments -Name "-ExecutionPolicy" -Value "Bypass"
     Add-ProcessArgument -Arguments $arguments -Name "-File" -Value $PSCommandPath
-    Add-ProcessArgument -Arguments $arguments -Name "-InstallRoot" -Value $InstallRoot
-    Add-ProcessArgument -Arguments $arguments -Name "-ToolsRoot" -Value $ToolsRoot
-    Add-ProcessArgument -Arguments $arguments -Name "-OutputRoot" -Value $OutputRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-InstallRoot" -Value (Resolve-DirectoryPath -Path $InstallRoot)
+    Add-ProcessArgument -Arguments $arguments -Name "-ToolsRoot" -Value (Resolve-DirectoryPath -Path $ToolsRoot)
+    Add-ProcessArgument -Arguments $arguments -Name "-OutputRoot" -Value (Resolve-DirectoryPath -Path $OutputRoot)
     Add-ProcessArgument -Arguments $arguments -Name "-RepositoryZipUrl" -Value $RepositoryZipUrl
     Add-ProcessArgument -Arguments $arguments -Name "-Profile" -Value $Profile
     Add-ProcessSwitch -Arguments $arguments -Name "-SetupPwrTest" -Enabled ([bool]$SetupPwrTest)

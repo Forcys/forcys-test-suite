@@ -51,6 +51,7 @@ param(
     [string]$WdkWingetPackageId = "Auto",
 
     [string]$WdkPackageVersion,
+    [string]$StatusPath,
 
     [switch]$InstallFullWDK,
     [switch]$InstallWdtf,
@@ -185,6 +186,16 @@ function Save-CommandOutput {
     catch {
         Write-Warning "$Description failed: $($_.Exception.Message)"
     }
+}
+
+function Save-Json {
+    param(
+        [Parameter(Mandatory)]$InputObject,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    Ensure-ParentDirectory -Path $Path
+    $InputObject | ConvertTo-Json -Depth 8 | Out-File -LiteralPath $Path -Encoding UTF8
 }
 
 function Ensure-Tls12 {
@@ -346,7 +357,9 @@ function Test-WdtfRuntimeInstalled {
     foreach ($uninstallRoot in $uninstallRoots) {
         $match = Get-ItemProperty -Path $uninstallRoot -ErrorAction SilentlyContinue |
             Where-Object {
-                $_.DisplayName -match "WDTF|Windows Driver Test|Windows Driver Testing Framework"
+                $displayNameProperty = $_.PSObject.Properties["DisplayName"]
+                $displayName = if ($displayNameProperty) { $displayNameProperty.Value } else { $null }
+                $displayName -and $displayName -match "WDTF|Windows Driver Test|Windows Driver Testing Framework"
             } |
             Select-Object -First 1
 
@@ -1133,6 +1146,34 @@ else {
     Write-Host "Native power engine selected. No NuGet, WDK, or PwrTest download is required."
 }
 
+$pwrTestStatus = [pscustomobject]@{
+    CollectedAt                        = Get-Date
+    ComputerName                       = $env:COMPUTERNAME
+    IsAdministrator                    = Test-IsAdministrator
+    PowerEngine                        = $resolvedPowerEngine
+    SetupOnly                          = [bool]$SetupOnly
+    ToolsRoot                          = $ToolsRoot
+    OutputRoot                         = $OutputRoot
+    StagedPwrTestPath                  = $pwrTestExe
+    StagedPwrTestExists                = Test-Path -LiteralPath $pwrTestExe
+    StagedPwrTestSignatureStatus       = if (Test-Path -LiteralPath $pwrTestExe) { (Get-AuthenticodeSignature -LiteralPath $pwrTestExe).Status.ToString() } else { $null }
+    InstalledWindowsDriverKitPwrTest   = Find-InstalledPwrTest
+    FullWindowsDriverKitDetected       = Test-FullWindowsDriverKitInstalled
+    WdtfRuntimeInstalled               = Test-WdtfRuntimeInstalled
+    WdtfVirtualPowerButtonInstalled    = Test-WdtfVirtualPowerButtonInstalled
+    InstallFullWDKRequested            = [bool]$InstallFullWDK
+    InstallWdtfRequested               = [bool]$InstallWdtf
+    WdkWingetPackageId                 = $WdkWingetPackageId
+    WdkWingetPackageIdResolved         = Resolve-WdkWingetPackageId -PackageId $WdkWingetPackageId
+    Notes                              = @(
+        "PwrTest /cs Modern Standby requires the WDTF virtual power button driver.",
+        "Microsoft documents WDTF/power button installation as part of Visual Studio plus WDK test-machine provisioning."
+    )
+}
+
+if ($StatusPath) {
+    Save-Json -InputObject $pwrTestStatus -Path $StatusPath
+}
 
 if ($SetupOnly) {
     Write-Host ""

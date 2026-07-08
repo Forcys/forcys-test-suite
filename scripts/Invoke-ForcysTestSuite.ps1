@@ -161,9 +161,9 @@ function Start-ElevatedSelf {
     Add-ProcessArgument -Arguments $arguments -Name "-ExecutionPolicy" -Value "Bypass"
     Add-ProcessArgument -Arguments $arguments -Name "-File" -Value $PSCommandPath
     Add-ProcessArgument -Arguments $arguments -Name "-Profile" -Value $Profile
-    Add-ProcessArgument -Arguments $arguments -Name "-InstallRoot" -Value $InstallRoot
-    Add-ProcessArgument -Arguments $arguments -Name "-ToolsRoot" -Value $ToolsRoot
-    Add-ProcessArgument -Arguments $arguments -Name "-OutputRoot" -Value $OutputRoot
+    Add-ProcessArgument -Arguments $arguments -Name "-InstallRoot" -Value (Resolve-DirectoryPath -Path $InstallRoot)
+    Add-ProcessArgument -Arguments $arguments -Name "-ToolsRoot" -Value (Resolve-DirectoryPath -Path $ToolsRoot)
+    Add-ProcessArgument -Arguments $arguments -Name "-OutputRoot" -Value (Resolve-DirectoryPath -Path $OutputRoot)
     Add-ProcessArgument -Arguments $arguments -Name "-LookbackDays" -Value ([string]$LookbackDays)
     Add-ProcessArgument -Arguments $arguments -Name "-SleepCycles" -Value ([string]$SleepCycles)
     Add-ProcessArgument -Arguments $arguments -Name "-HibernateCycles" -Value ([string]$HibernateCycles)
@@ -383,8 +383,9 @@ Start here:
 1. Review RunManifest.json for module status.
 2. Review Logs\*.log for module console output.
 3. Review Modules\KernelPower\*\Reports\interesting-events.csv for crash, WHEA, display, storage, and power events.
-4. Review Modules\PwrTest\*\README.txt and PwrTest XML/log output when PwrTest ran.
-5. Attach the zip bundle to the support case.
+4. Review Modules\PwrTest\pwrtest-status.json for PwrTest, full WDK, WDTF, and virtual power button readiness.
+5. Review Modules\PwrTest\*\README.txt and PwrTest XML/log output when PwrTest ran.
+6. Attach the zip bundle to the support case.
 "@
 
     $content | Out-File -LiteralPath (Join-PathSafe -Path $RunRoot -ChildPath @("README.txt")) -Encoding UTF8
@@ -448,8 +449,10 @@ if (-not $SkipPwrTest) {
     $pwrTestScript = Join-PathSafe -Path $installRootPath -ChildPath @("scripts", "Invoke-ForcysPwrTest.ps1")
     if (Test-Path -LiteralPath $pwrTestScript) {
         $arguments = New-Object System.Collections.Generic.List[string]
+        $pwrTestModuleRoot = Join-PathSafe -Path $modulesRoot -ChildPath @("PwrTest")
         Add-Argument -Arguments $arguments -Name "-ToolsRoot" -Value $toolsRootPath
-        Add-Argument -Arguments $arguments -Name "-OutputRoot" -Value (Join-PathSafe -Path $modulesRoot -ChildPath @("PwrTest"))
+        Add-Argument -Arguments $arguments -Name "-OutputRoot" -Value $pwrTestModuleRoot
+        Add-Argument -Arguments $arguments -Name "-StatusPath" -Value (Join-PathSafe -Path $pwrTestModuleRoot -ChildPath @("pwrtest-status.json"))
         Add-Argument -Arguments $arguments -Name "-EnergyDurationSeconds" -Value $EnergyDurationSeconds
         Add-SwitchArgument -Arguments $arguments -Name "-InstallFullWDK" -Enabled ([bool]$InstallTools -and [bool]$InstallFullWDK)
         Add-SwitchArgument -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallTools -and [bool]$InstallWdtf)
