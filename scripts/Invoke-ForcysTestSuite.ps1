@@ -143,7 +143,7 @@ function Add-ProcessSwitch {
 }
 
 function ConvertTo-ProcessArgumentLine {
-    param([Parameter(Mandatory)][string[]]$Arguments)
+    param([string[]]$Arguments)
 
     return (($Arguments | ForEach-Object {
         if ($_ -match '[\s"]') {
