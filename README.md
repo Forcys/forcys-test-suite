@@ -16,23 +16,23 @@ Invoke-WebRequest "https://raw.githubusercontent.com/Forcys/forcys-test-suite/ma
 
 This downloads or updates the suite, runs the triage profile, and creates a zipped evidence bundle plus `.sha256` checksum under `C:\ProgramData\Forcys\TestSuite\Runs`.
 
-To also allow Microsoft WDK/WDTF setup for PwrTest Modern Standby testing:
+To install the full Microsoft driver test stack while running triage, including the Windows Driver Kit, WDTF runtime, and the WDK Test Target Setup fallback used for the virtual power button:
 
 ```powershell
 $p = Join-Path $env:TEMP "install-forcys-test-suite.ps1"
 Invoke-WebRequest "https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1" -OutFile $p -UseBasicParsing
-& $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -InstallFullWDK -InstallWdtf -Elevate
+& $p -InstallRoot C:\forcys-test-suite -RunSuite -Profile Triage -InstallMicrosoftDriverTestStack -Elevate
 ```
 
-To download/update the suite and only set up the full PwrTest/WDK/WDTF tooling, including the WDTF virtual power button fallback:
+To download/update the suite and only set up the full Microsoft driver test stack without running a test:
 
 ```powershell
 $p = Join-Path $env:TEMP "install-forcys-test-suite.ps1"
 Invoke-WebRequest "https://raw.githubusercontent.com/Forcys/forcys-test-suite/main/install.ps1" -OutFile $p -UseBasicParsing
-& $p -InstallRoot C:\forcys-test-suite -SetupPwrTest -InstallFullWDK -InstallWdtf -Elevate
+& $p -InstallRoot C:\forcys-test-suite -SetupPwrTest -InstallMicrosoftDriverTestStack -Elevate
 ```
 
-The installer does not require Git. It updates repository-managed files, backs up replaced files to `install-backups`, and preserves local tools, logs, runs, zip bundles, dumps, reports, and analysis folders. `-InstallFullWDK` and `-InstallWdtf` are explicit because they install Microsoft tools and driver-test runtime components on the machine.
+The installer does not require Git. It updates repository-managed files, backs up replaced files to `install-backups`, and preserves local tools, logs, runs, zip bundles, dumps, reports, and analysis folders. `-InstallMicrosoftDriverTestStack` is explicit because it installs Microsoft tools and driver-test runtime components on the machine. The shorter alias `-InstallFullStack` is also available.
 
 Profiles:
 
@@ -70,13 +70,13 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly
 ```
 
-By default, the script uses Microsoft PwrTest. For the most complete setup, install the full Windows Driver Kit and WDTF runtime:
+By default, the script uses Microsoft PwrTest. For the most complete setup, install the full Microsoft driver test stack:
 
 ```powershell
-.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallFullWDK -InstallWdtf
+.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallMicrosoftDriverTestStack
 ```
 
-WDTF is the Windows Driver Testing Framework. PwrTest's Modern Standby `/cs` mode needs the WDTF virtual power button driver. If the driver is missing, the script skips Modern Standby instead of failing the whole run.
+`-InstallMicrosoftDriverTestStack` turns on `-InstallFullWDK` and `-InstallWdtf`, then lets the script install/check the Windows Driver Kit, WDTF runtime, and WDK Test Target Setup MSI. WDTF is the Windows Driver Testing Framework. PwrTest's Modern Standby `/cs` mode needs the WDTF virtual power button driver. If the driver is missing, the script skips Modern Standby instead of failing the whole run.
 
 When `-InstallWdtf` is used, the script first installs or checks the WDTF runtime. If the virtual power button is still missing, it also tries the Microsoft WDK Test Target Setup MSI from the WDK `Remote` folder, for example:
 
@@ -90,6 +90,12 @@ If the full WDK is already installed and you only need to add/check WDTF:
 
 ```powershell
 .\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallWdtf
+```
+
+If you want to debug the setup layer by layer instead of using the umbrella option:
+
+```powershell
+.\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallFullWDK -InstallWdtf
 ```
 
 By default the script auto-selects a winget WDK package based on the Windows build. To install a specific WDK package:

@@ -46,6 +46,8 @@ param(
     [string]$DebuggerPath,
 
     [switch]$InstallTools,
+    [Alias("InstallFullStack")]
+    [switch]$InstallMicrosoftDriverTestStack,
     [switch]$InstallFullWDK,
     [switch]$InstallWdtf,
     [switch]$SkipPwrTest,
@@ -59,6 +61,12 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ($InstallMicrosoftDriverTestStack) {
+    $InstallTools = $true
+    $InstallFullWDK = $true
+    $InstallWdtf = $true
+}
 
 function Write-Section {
     param([Parameter(Mandatory)][string]$Text)
@@ -174,6 +182,7 @@ function Start-ElevatedSelf {
         Add-ProcessArgument -Arguments $arguments -Name "-DebuggerPath" -Value $DebuggerPath
     }
     Add-ProcessSwitch -Arguments $arguments -Name "-InstallTools" -Enabled ([bool]$InstallTools)
+    Add-ProcessSwitch -Arguments $arguments -Name "-InstallMicrosoftDriverTestStack" -Enabled ([bool]$InstallMicrosoftDriverTestStack)
     Add-ProcessSwitch -Arguments $arguments -Name "-InstallFullWDK" -Enabled ([bool]$InstallFullWDK)
     Add-ProcessSwitch -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallWdtf)
     Add-ProcessSwitch -Arguments $arguments -Name "-SkipPwrTest" -Enabled ([bool]$SkipPwrTest)
@@ -454,6 +463,7 @@ if (-not $SkipPwrTest) {
         Add-Argument -Arguments $arguments -Name "-OutputRoot" -Value $pwrTestModuleRoot
         Add-Argument -Arguments $arguments -Name "-StatusPath" -Value (Join-PathSafe -Path $pwrTestModuleRoot -ChildPath @("pwrtest-status.json"))
         Add-Argument -Arguments $arguments -Name "-EnergyDurationSeconds" -Value $EnergyDurationSeconds
+        Add-SwitchArgument -Arguments $arguments -Name "-InstallMicrosoftDriverTestStack" -Enabled ([bool]$InstallTools -and [bool]$InstallMicrosoftDriverTestStack)
         Add-SwitchArgument -Arguments $arguments -Name "-InstallFullWDK" -Enabled ([bool]$InstallTools -and [bool]$InstallFullWDK)
         Add-SwitchArgument -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallTools -and [bool]$InstallWdtf)
         Add-SwitchArgument -Arguments $arguments -Name "-SkipEnergyReport" -Enabled ([bool]$SkipEnergyReport -or $Profile -eq "Quick")

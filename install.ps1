@@ -28,6 +28,8 @@ param(
     [switch]$RunSuite,
     [ValidateSet("Quick", "Triage", "Full")]
     [string]$Profile = "Triage",
+    [Alias("InstallFullStack")]
+    [switch]$InstallMicrosoftDriverTestStack,
     [switch]$InstallFullWDK,
     [switch]$InstallWdtf,
     [switch]$Elevate,
@@ -36,6 +38,11 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ($InstallMicrosoftDriverTestStack) {
+    $InstallFullWDK = $true
+    $InstallWdtf = $true
+}
 
 function Write-Section {
     param([Parameter(Mandatory)][string]$Text)
@@ -127,6 +134,7 @@ function Start-ElevatedSelf {
     Add-ProcessArgument -Arguments $arguments -Name "-Profile" -Value $Profile
     Add-ProcessSwitch -Arguments $arguments -Name "-SetupPwrTest" -Enabled ([bool]$SetupPwrTest)
     Add-ProcessSwitch -Arguments $arguments -Name "-RunSuite" -Enabled ([bool]$RunSuite)
+    Add-ProcessSwitch -Arguments $arguments -Name "-InstallMicrosoftDriverTestStack" -Enabled ([bool]$InstallMicrosoftDriverTestStack)
     Add-ProcessSwitch -Arguments $arguments -Name "-InstallFullWDK" -Enabled ([bool]$InstallFullWDK)
     Add-ProcessSwitch -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallWdtf)
     Add-ProcessSwitch -Arguments $arguments -Name "-CleanBackups" -Enabled ([bool]$CleanBackups)
@@ -241,6 +249,10 @@ try {
         }
 
         $setupArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $pwrTestScript, "-SetupOnly", "-ToolsRoot", $toolsRootPath, "-OutputRoot", (Join-Path $outputRootPath "PwrTest-Setup"))
+        if ($InstallMicrosoftDriverTestStack) {
+            $setupArguments += "-InstallMicrosoftDriverTestStack"
+        }
+
         if ($InstallFullWDK) {
             $setupArguments += "-InstallFullWDK"
         }
@@ -265,6 +277,10 @@ try {
         $suiteArguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $suiteScript, "-Profile", $Profile, "-InstallRoot", $installRootPath, "-ToolsRoot", $toolsRootPath, "-OutputRoot", $outputRootPath)
         if ($InstallFullWDK -or $InstallWdtf) {
             $suiteArguments += "-InstallTools"
+        }
+
+        if ($InstallMicrosoftDriverTestStack) {
+            $suiteArguments += "-InstallMicrosoftDriverTestStack"
         }
 
         if ($InstallFullWDK) {

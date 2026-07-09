@@ -53,6 +53,8 @@ param(
     [string]$WdkPackageVersion,
     [string]$StatusPath,
 
+    [Alias("InstallFullStack")]
+    [switch]$InstallMicrosoftDriverTestStack,
     [switch]$InstallFullWDK,
     [switch]$InstallWdtf,
     [string]$WdtfInstallerPath,
@@ -68,6 +70,11 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ($InstallMicrosoftDriverTestStack) {
+    $InstallFullWDK = $true
+    $InstallWdtf = $true
+}
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -966,7 +973,7 @@ function Invoke-PwrTestRuns {
             }
             else {
                 Write-Warning "Modern Standby /cs requires the WDTF virtual power button driver, but it was not detected."
-                Write-Warning "Run setup as Administrator with: .\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallFullWDK -InstallWdtf"
+                Write-Warning "Run setup as Administrator with: .\scripts\Invoke-ForcysPwrTest.ps1 -SetupOnly -InstallMicrosoftDriverTestStack"
                 Write-Warning "Sleep test skipped so hibernate and after-test reports can still run."
             }
         }
@@ -1272,6 +1279,7 @@ $pwrTestStatus = [pscustomobject]@{
     FullWindowsDriverKitDetected       = Test-FullWindowsDriverKitInstalled
     WdtfRuntimeInstalled               = Test-WdtfRuntimeInstalled
     WdtfVirtualPowerButtonInstalled    = Test-WdtfVirtualPowerButtonInstalled
+    InstallMicrosoftDriverTestStackRequested = [bool]$InstallMicrosoftDriverTestStack
     InstallFullWDKRequested            = [bool]$InstallFullWDK
     InstallWdtfRequested               = [bool]$InstallWdtf
     WdkWingetPackageId                 = $WdkWingetPackageId
