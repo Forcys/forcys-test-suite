@@ -64,6 +64,14 @@ By default, the script uses Microsoft PwrTest. For the most complete setup, inst
 
 WDTF is the Windows Driver Testing Framework. PwrTest's Modern Standby `/cs` mode needs the WDTF virtual power button driver. If the driver is missing, the script skips Modern Standby instead of failing the whole run.
 
+When `-InstallWdtf` is used, the script first installs or checks the WDTF runtime. If the virtual power button is still missing, it also tries the Microsoft WDK Test Target Setup MSI from the WDK `Remote` folder, for example:
+
+```powershell
+C:\Program Files (x86)\Windows Kits\10\Remote\x64\WDK Test Target Setup x64-x64_en-us.msi
+```
+
+Reboot after this setup before expecting `/cs` to work. If the virtual button is still absent after reboot, use the official Visual Studio + WDK device provisioning flow, because Microsoft documents the WDTF power button driver as part of test-computer provisioning.
+
 If the full WDK is already installed and you only need to add/check WDTF:
 
 ```powershell

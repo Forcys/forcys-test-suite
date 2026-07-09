@@ -348,6 +348,50 @@ function Find-WdtfRuntimeInstaller {
     return $preferred.FullName
 }
 
+function Find-WdkTestTargetSetupInstaller {
+    param([string]$ExplicitPath)
+
+    if ($ExplicitPath) {
+        $resolvedPath = Resolve-DirectoryPath -Path $ExplicitPath
+        if (-not (Test-Path -LiteralPath $resolvedPath)) {
+            throw "The WDK test target setup installer path does not exist: $ExplicitPath"
+        }
+
+        return $resolvedPath
+    }
+
+    $architecture = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+    $candidateRoots = foreach ($kitRoot in Get-WindowsKitRoots) {
+        Join-PathSafe -Path $kitRoot -ChildPath @("Remote", $architecture)
+        Join-PathSafe -Path $kitRoot -ChildPath @("Remote")
+    }
+
+    $installers = foreach ($candidateRoot in ($candidateRoots | Select-Object -Unique)) {
+        if (Test-Path -LiteralPath $candidateRoot) {
+            Get-ChildItem -LiteralPath $candidateRoot -Recurse -File -Filter "*.msi" -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match "WDK.*Test.*Target.*Setup|Test.*Target.*Setup" }
+        }
+    }
+
+    if (-not $installers) {
+        return $null
+    }
+
+    $preferred = $installers |
+        Sort-Object @{
+            Expression = {
+                $score = 0
+                if ($_.Name -match $architecture) { $score += 50 }
+                if ($_.DirectoryName -match "\\Remote\\$architecture(\\|$)") { $score += 25 }
+                $score
+            }
+            Descending = $true
+        }, FullName |
+        Select-Object -First 1
+
+    return $preferred.FullName
+}
+
 function Test-WdtfRuntimeInstalled {
     $uninstallRoots = @(
         "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
@@ -364,6 +408,40 @@ function Test-WdtfRuntimeInstalled {
             Select-Object -First 1
 
         if ($match) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-WdkTestTargetSetupInstalled {
+    $uninstallRoots = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+
+    foreach ($uninstallRoot in $uninstallRoots) {
+        $match = Get-ItemProperty -Path $uninstallRoot -ErrorAction SilentlyContinue |
+            Where-Object {
+                $displayNameProperty = $_.PSObject.Properties["DisplayName"]
+                $displayName = if ($displayNameProperty) { $displayNameProperty.Value } else { $null }
+                $displayName -and $displayName -match "WDK.*Test.*Target|Windows Driver Kit.*Test.*Target|Driver Test.*Target"
+            } |
+            Select-Object -First 1
+
+        if ($match) {
+            return $true
+        }
+    }
+
+    $driverTestRoots = @(
+        "C:\DriverTest",
+        (Join-Path $env:SystemDrive "DriverTest")
+    )
+
+    foreach ($driverTestRoot in ($driverTestRoots | Select-Object -Unique)) {
+        if ($driverTestRoot -and (Test-Path -LiteralPath $driverTestRoot)) {
             return $true
         }
     }
@@ -407,6 +485,31 @@ function Test-WdtfVirtualPowerButtonInstalled {
     return $false
 }
 
+function Ensure-WdkTestTargetSetup {
+    param([string]$InstallerPath)
+
+    Write-Section "Checking WDK test target setup"
+
+    if (Test-WdkTestTargetSetupInstalled) {
+        Write-Host "WDK test target setup already appears to be installed."
+    }
+    else {
+        $installer = Find-WdkTestTargetSetupInstaller -ExplicitPath $InstallerPath
+        if (-not $installer) {
+            Write-Warning "WDK test target setup MSI was not found under the Windows Kits Remote folder. Visual Studio WDK provisioning may still be required for the WDTF virtual power button."
+            return
+        }
+
+        Write-Host "Installing WDK test target setup:"
+        Write-Host $installer
+        $exitCode = Invoke-External -FilePath "msiexec.exe" -Arguments @("/i", $installer, "/qn", "/norestart") -AllowedExitCodes @(0, 3010, 1641)
+
+        if ($exitCode -in @(3010, 1641)) {
+            Write-Warning "WDK test target setup requested a reboot. Reboot before running Modern Standby /cs tests."
+        }
+    }
+}
+
 function Ensure-WdtfRuntime {
     param([string]$InstallerPath)
 
@@ -434,7 +537,15 @@ function Ensure-WdtfRuntime {
         Write-Host "WDTF virtual power button is present."
     }
     else {
-        Write-Warning "WDTF runtime was handled, but the virtual power button is not visible yet. A reboot or WDK/WDTF repair may be required before PwrTest /cs can run."
+        Write-Warning "WDTF runtime was handled, but the virtual power button is not visible yet."
+        Ensure-WdkTestTargetSetup
+
+        if (Test-WdtfVirtualPowerButtonInstalled) {
+            Write-Host "WDTF virtual power button is present after WDK test target setup."
+        }
+        else {
+            Write-Warning "WDTF virtual power button is still not visible. Reboot first; if it remains missing, provision the test computer from Visual Studio with the WDK."
+        }
     }
 }
 
