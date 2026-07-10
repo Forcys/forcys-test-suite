@@ -90,6 +90,8 @@ Reboot after this setup before expecting `/cs` to work. If the virtual button is
 
 The setup also looks for WDTF's `button.inf`, installs it with `pnputil`, and creates the `ROOT\BUTTON` device with `devcon` when the WDTF content is available. Installing the WDK and WDTF MSI alone does not always create that device.
 
+If setup cannot find a WDK, WDTF, `button.inf`, or DevCon file, it now reports the missing component and continues to the documented fallback instead of failing while reading `.FullName` from an empty lookup result.
+
 If the full WDK is already installed and you only need to add/check WDTF:
 
 ```powershell

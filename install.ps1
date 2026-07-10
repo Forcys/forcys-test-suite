@@ -212,13 +212,15 @@ try {
     Write-Section "Extracting repository"
     Expand-Archive -LiteralPath $zipPath -DestinationPath $extractRoot -Force
 
-    $sourceRoot = Get-ChildItem -LiteralPath $extractRoot -Directory | Select-Object -First 1
+    $sourceRoot = @(Get-ChildItem -LiteralPath $extractRoot -Directory -ErrorAction SilentlyContinue) |
+        Select-Object -First 1
     if (-not $sourceRoot) {
         throw "The downloaded repository archive did not contain a source folder."
     }
 
     Write-Section "Updating files"
-    foreach ($sourceItem in Get-ChildItem -LiteralPath $sourceRoot.FullName -Force) {
+    $sourceRootPath = $sourceRoot.FullName
+    foreach ($sourceItem in Get-ChildItem -LiteralPath $sourceRootPath -Force) {
         if (Test-PreserveInstallItem -Item $sourceItem) {
             continue
         }

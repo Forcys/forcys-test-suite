@@ -57,6 +57,8 @@ C:\Program Files (x86)\Windows Kits\10\Testing\Runtimes\WDTF\RunTime\Actions\Sys
 
 If no file is found, the WDTF Desktop Kit content is missing. Install the WDTF content from the WDK or use Visual Studio WDK test-computer provisioning.
 
+The installer treats a missing result as a supported diagnostic condition. It should report that the file was not found rather than fail with a `.FullName` property error.
+
 ### 4. Install the button driver manually
 
 Run this only after step 3 finds `button.inf`:
@@ -145,4 +147,3 @@ cd C:\forcys-test-suite
 ```
 
 The output should contain `Starting Modern Standby test`. If the machine does not support S0 Low Power Idle, `/cs` cannot run even when the WDTF button is installed.
-

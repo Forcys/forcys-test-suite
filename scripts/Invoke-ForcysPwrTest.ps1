@@ -274,7 +274,12 @@ function Find-PwrTest {
         return $preferred.FullName
     }
 
-    return ($matches | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+    $fallback = $matches | Sort-Object FullName -Descending | Select-Object -First 1
+    if ($fallback) {
+        return $fallback.FullName
+    }
+
+    return $null
 }
 
 function Find-InstalledPwrTest {
@@ -353,7 +358,11 @@ function Find-WdtfRuntimeInstaller {
         }, FullName |
         Select-Object -First 1
 
-    return $preferred.FullName
+    if ($preferred) {
+        return $preferred.FullName
+    }
+
+    return $null
 }
 
 function Find-WdkTestTargetSetupInstaller {
@@ -397,7 +406,11 @@ function Find-WdkTestTargetSetupInstaller {
         }, FullName |
         Select-Object -First 1
 
-    return $preferred.FullName
+    if ($preferred) {
+        return $preferred.FullName
+    }
+
+    return $null
 }
 
 function Test-WdtfRuntimeInstalled {
@@ -520,7 +533,12 @@ function Find-WdtfPowerButtonInf {
         }
     }
 
-    return ($matches | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+    $match = $matches | Sort-Object FullName -Descending | Select-Object -First 1
+    if ($match) {
+        return $match.FullName
+    }
+
+    return $null
 }
 
 function Find-DevCon {
@@ -533,7 +551,12 @@ function Find-DevCon {
         }
     }
 
-    return ($matches | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+    $match = $matches | Sort-Object FullName -Descending | Select-Object -First 1
+    if ($match) {
+        return $match.FullName
+    }
+
+    return $null
 }
 
 function Ensure-WdtfVirtualPowerButtonDriver {
