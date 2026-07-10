@@ -37,6 +37,8 @@ Get-ItemProperty `
 
 The registry result proves that a runtime package is installed; it does not prove that `ROOT\BUTTON` was provisioned.
 
+In particular, `OneCoreUap_WDTF_Headers_and_Libs_Kit_Content` is not the WDTF runtime. The runtime requires the WDTF Desktop Kit content and product packages. The Forcys full-stack setup downloads the official WDK bootstrapper when those runtime packages are missing.
+
 ### 3. Find WDTF button content
 
 ```powershell

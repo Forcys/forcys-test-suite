@@ -45,6 +45,9 @@ param(
     [string]$NuGetSource = "https://api.nuget.org/v3/index.json",
 
     [ValidateNotNullOrEmpty()]
+    [string]$WdkBootstrapperUrl = "https://download.microsoft.com/download/302bbcbf-52ae-4e23-ba35-dce560124051/KIT_BUNDLE_WDK_MEDIACREATION/wdksetup.exe",
+
+    [ValidateNotNullOrEmpty()]
     [string]$WdkPackage = "Microsoft.Windows.WDK.x64",
 
     [ValidateNotNullOrEmpty()]
@@ -424,7 +427,9 @@ function Test-WdtfRuntimeInstalled {
             Where-Object {
                 $displayNameProperty = $_.PSObject.Properties["DisplayName"]
                 $displayName = if ($displayNameProperty) { $displayNameProperty.Value } else { $null }
-                $displayName -and $displayName -match "WDTF|Windows Driver Test|Windows Driver Testing Framework"
+                $displayName -and
+                $displayName -notmatch "Headers|Libs" -and
+                $displayName -match "WDTF.*Runtime|Windows Driver Testing Framework.*Runtime|WDTF_Desktop_Kit_Product|OneCoreUap_WDTF_Desktop_Kit_Content"
             } |
             Select-Object -First 1
 
@@ -434,6 +439,71 @@ function Test-WdtfRuntimeInstalled {
     }
 
     return $false
+}
+
+function Find-WdtfRuntimeInstallers {
+    param([string]$ExplicitPath)
+
+    if ($ExplicitPath) {
+        $resolvedPath = Resolve-DirectoryPath -Path $ExplicitPath
+        if (-not (Test-Path -LiteralPath $resolvedPath)) {
+            throw "The WDTF installer path does not exist: $ExplicitPath"
+        }
+
+        $item = Get-Item -LiteralPath $resolvedPath
+        if ($item.PSIsContainer) {
+            return @(Get-ChildItem -LiteralPath $item.FullName -Recurse -File -Filter "*.msi" -ErrorAction SilentlyContinue)
+        }
+
+        return @($item)
+    }
+
+    $architecture = if ([Environment]::Is64BitOperatingSystem) { "x64|amd64" } else { "x86" }
+    $candidateRoots = foreach ($kitRoot in Get-WindowsKitRoots) {
+        Join-PathSafe -Path $kitRoot -ChildPath @("Testing", "Runtimes")
+        Join-PathSafe -Path $kitRoot -ChildPath @("Testing", "Runtimes", "WDTF")
+    }
+
+    $installers = foreach ($candidateRoot in ($candidateRoots | Select-Object -Unique)) {
+        if (Test-Path -LiteralPath $candidateRoot) {
+            Get-ChildItem -LiteralPath $candidateRoot -Recurse -File -Filter "*.msi" -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.Name -match $architecture -and
+                    $_.Name -match "OneCoreUap_WDTF_Desktop_Kit_Content|WDTF_Desktop_Kit_Product"
+                }
+        }
+    }
+
+    return @($installers | Sort-Object Name, FullName -Unique)
+}
+
+function Ensure-WdkWdtfPayload {
+    param([Parameter(Mandatory)][string]$BootstrapperUrl)
+
+    $installers = @(Find-WdtfRuntimeInstallers)
+    $hasContent = $installers.Name -match "OneCoreUap_WDTF_Desktop_Kit_Content"
+    $hasProduct = $installers.Name -match "WDTF_Desktop_Kit_Product"
+    if ($hasContent -and $hasProduct) {
+        return
+    }
+
+    Ensure-Tls12
+    $bootstrapperDirectory = Join-Path $ToolsRoot "WDK"
+    $bootstrapperPath = Join-Path $bootstrapperDirectory "wdksetup.exe"
+    Ensure-Directory -Path $bootstrapperDirectory
+
+    if (-not (Test-Path -LiteralPath $bootstrapperPath)) {
+        Write-Host "Downloading the Microsoft WDK bootstrapper to acquire WDTF runtime content."
+        Invoke-WebRequest -Uri $BootstrapperUrl -OutFile $bootstrapperPath -UseBasicParsing
+    }
+
+    if (-not (Test-Path -LiteralPath $bootstrapperPath)) {
+        throw "The WDK bootstrapper download did not produce: $bootstrapperPath"
+    }
+
+    $logPath = Join-Path $bootstrapperDirectory "wdksetup.log"
+    Write-Host "Acquiring WDTF runtime content through the Microsoft WDK bootstrapper."
+    Invoke-External -FilePath $bootstrapperPath -Arguments @("/quiet", "/norestart", "/log", $logPath) -AllowedExitCodes @(0, 3010, 1641) | Out-Null
 }
 
 function Test-WdkTestTargetSetupInstalled {
@@ -632,17 +702,21 @@ function Ensure-WdtfRuntime {
         Write-Host "WDTF runtime already appears to be installed."
     }
     else {
-        $installer = Find-WdtfRuntimeInstaller -ExplicitPath $InstallerPath
-        if (-not $installer) {
-            throw "WDTF runtime installer was not found under the Windows Kits folder. Install the full Windows Driver Kit, then rerun with -InstallWdtf. You can also pass -WdtfInstallerPath if you know the MSI path."
+        Ensure-WdkWdtfPayload -BootstrapperUrl $WdkBootstrapperUrl
+        $installers = @(Find-WdtfRuntimeInstallers -ExplicitPath $InstallerPath)
+        if (-not $installers) {
+            throw "WDTF runtime MSIs were not found after the WDK bootstrapper ran. Install WDTF manually or use Visual Studio WDK test-computer provisioning."
         }
 
-        Write-Host "Installing WDTF runtime:"
-        Write-Host $installer
-        $exitCode = Invoke-External -FilePath "msiexec.exe" -Arguments @("/i", $installer, "/qn", "/norestart") -AllowedExitCodes @(0, 3010, 1641)
+        foreach ($installer in $installers) {
+            Write-Host "Installing WDTF runtime component:"
+            Write-Host $installer.FullName
+            $logPath = Join-Path $ToolsRoot ("WDTF-" + $installer.BaseName + ".log")
+            $exitCode = Invoke-External -FilePath "msiexec.exe" -Arguments @("/i", $installer.FullName, "/qn", "/norestart", "WDTF_SKIP_MACHINE_CONFIG=1", "/l*", $logPath) -AllowedExitCodes @(0, 3010, 1641)
 
-        if ($exitCode -in @(3010, 1641)) {
-            Write-Warning "WDTF install requested a reboot. Reboot before running Modern Standby /cs tests."
+            if ($exitCode -in @(3010, 1641)) {
+                Write-Warning "WDTF install requested a reboot. Reboot before running Modern Standby /cs tests."
+            }
         }
     }
 
