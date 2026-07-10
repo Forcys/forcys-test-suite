@@ -17,5 +17,6 @@ KernelPower-*.zip
 # PowerShell/editor noise
 *.log
 *.tmp
+.env
 .vscode/
 .idea/
