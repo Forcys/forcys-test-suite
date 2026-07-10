@@ -458,6 +458,21 @@ function Test-WdkTestTargetSetupInstalled {
 }
 
 function Test-WdtfVirtualPowerButtonInstalled {
+    $getPnpDevice = Get-Command Get-PnpDevice -ErrorAction SilentlyContinue
+    if ($getPnpDevice) {
+        try {
+            $rootButton = Get-PnpDevice -InstanceId "ROOT\BUTTON\*" -ErrorAction SilentlyContinue |
+                Where-Object { $_.Status -eq "OK" } |
+                Select-Object -First 1
+
+            if ($rootButton) {
+                return $true
+            }
+        }
+        catch {
+        }
+    }
+
     $wdtfPowerPattern = "WDTF.*(Power|Button)|Virtual.*Power.*Button|Power.*Button.*WDTF"
 
     try {
@@ -491,6 +506,73 @@ function Test-WdtfVirtualPowerButtonInstalled {
     }
 
     return $false
+}
+
+function Find-WdtfPowerButtonInf {
+    $candidateRoots = foreach ($kitRoot in Get-WindowsKitRoots) {
+        Join-PathSafe -Path $kitRoot -ChildPath @("Testing", "Runtimes", "WDTF", "RunTime", "Actions", "System")
+    }
+
+    $matches = foreach ($candidateRoot in ($candidateRoots | Select-Object -Unique)) {
+        $candidatePath = Join-PathSafe -Path $candidateRoot -ChildPath @("button.inf")
+        if (Test-Path -LiteralPath $candidatePath) {
+            Get-Item -LiteralPath $candidatePath
+        }
+    }
+
+    return ($matches | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+}
+
+function Find-DevCon {
+    $architecture = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+    $matches = foreach ($kitRoot in Get-WindowsKitRoots) {
+        $toolsRoot = Join-PathSafe -Path $kitRoot -ChildPath @("Tools")
+        if (Test-Path -LiteralPath $toolsRoot) {
+            Get-ChildItem -LiteralPath $toolsRoot -Recurse -File -Filter "devcon.exe" -ErrorAction SilentlyContinue |
+                Where-Object { $_.DirectoryName -match "\\$architecture$" }
+        }
+    }
+
+    return ($matches | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+}
+
+function Ensure-WdtfVirtualPowerButtonDriver {
+    if (Test-WdtfVirtualPowerButtonInstalled) {
+        Write-Host "WDTF virtual power button is present."
+        return
+    }
+
+    $buttonInf = Find-WdtfPowerButtonInf
+    if (-not $buttonInf) {
+        Write-Warning "WDTF button.inf was not found. Install WDTF Desktop Kit content or use Visual Studio WDK provisioning."
+        return
+    }
+
+    Write-Host "Installing WDTF virtual power button driver:"
+    Write-Host $buttonInf
+    Invoke-External -FilePath "pnputil.exe" -Arguments @("/add-driver", $buttonInf, "/install") -AllowedExitCodes @(0) | Out-Null
+
+    if (Test-WdtfVirtualPowerButtonInstalled) {
+        Write-Host "WDTF virtual power button is present after pnputil install."
+        return
+    }
+
+    $devCon = Find-DevCon
+    if (-not $devCon) {
+        Write-Warning "devcon.exe was not found. Visual Studio WDK provisioning may still be required."
+        return
+    }
+
+    Write-Host "Creating ROOT\BUTTON device with devcon:"
+    Write-Host $devCon
+    Invoke-External -FilePath $devCon -Arguments @("install", $buttonInf, "root\button") -AllowedExitCodes @(0) | Out-Null
+
+    if (Test-WdtfVirtualPowerButtonInstalled) {
+        Write-Host "WDTF virtual power button is present."
+    }
+    else {
+        Write-Warning "WDTF virtual power button is still not visible. Reboot and use Visual Studio WDK test-computer provisioning if needed."
+    }
 }
 
 function Ensure-WdkTestTargetSetup {
@@ -547,6 +629,7 @@ function Ensure-WdtfRuntime {
     else {
         Write-Warning "WDTF runtime was handled, but the virtual power button is not visible yet."
         Ensure-WdkTestTargetSetup
+        Ensure-WdtfVirtualPowerButtonDriver
 
         if (Test-WdtfVirtualPowerButtonInstalled) {
             Write-Host "WDTF virtual power button is present after WDK test target setup."
