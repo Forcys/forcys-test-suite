@@ -52,6 +52,7 @@ param(
     [switch]$InstallWdtf,
     [switch]$SkipPwrTest,
     [switch]$SkipKernelPower,
+    [switch]$SkipBaseline,
     [switch]$SkipEnergyReport,
     [switch]$SkipDumpAnalysis,
     [switch]$ConfigureMinidumps,
@@ -187,6 +188,7 @@ function Start-ElevatedSelf {
     Add-ProcessSwitch -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallWdtf)
     Add-ProcessSwitch -Arguments $arguments -Name "-SkipPwrTest" -Enabled ([bool]$SkipPwrTest)
     Add-ProcessSwitch -Arguments $arguments -Name "-SkipKernelPower" -Enabled ([bool]$SkipKernelPower)
+    Add-ProcessSwitch -Arguments $arguments -Name "-SkipBaseline" -Enabled ([bool]$SkipBaseline)
     Add-ProcessSwitch -Arguments $arguments -Name "-SkipEnergyReport" -Enabled ([bool]$SkipEnergyReport)
     Add-ProcessSwitch -Arguments $arguments -Name "-SkipDumpAnalysis" -Enabled ([bool]$SkipDumpAnalysis)
     Add-ProcessSwitch -Arguments $arguments -Name "-ConfigureMinidumps" -Enabled ([bool]$ConfigureMinidumps)
@@ -466,6 +468,7 @@ if (-not $SkipPwrTest) {
         Add-SwitchArgument -Arguments $arguments -Name "-InstallMicrosoftDriverTestStack" -Enabled ([bool]$InstallTools -and [bool]$InstallMicrosoftDriverTestStack)
         Add-SwitchArgument -Arguments $arguments -Name "-InstallFullWDK" -Enabled ([bool]$InstallTools -and [bool]$InstallFullWDK)
         Add-SwitchArgument -Arguments $arguments -Name "-InstallWdtf" -Enabled ([bool]$InstallTools -and [bool]$InstallWdtf)
+        Add-SwitchArgument -Arguments $arguments -Name "-SkipBaseline" -Enabled ([bool]$SkipBaseline)
         Add-SwitchArgument -Arguments $arguments -Name "-SkipEnergyReport" -Enabled ([bool]$SkipEnergyReport -or $Profile -eq "Quick")
 
         if ($Profile -eq "Quick") {

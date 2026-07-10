@@ -61,6 +61,7 @@ param(
     [switch]$SetupOnly,
     [switch]$SkipSleep,
     [switch]$SkipHibernate,
+    [switch]$SkipBaseline,
     [switch]$SkipEnergyReport,
     [switch]$SkipAdminCheck,
     [switch]$ForceRedownloadNuGet,
@@ -1270,6 +1271,7 @@ $pwrTestStatus = [pscustomobject]@{
     IsAdministrator                    = Test-IsAdministrator
     PowerEngine                        = $resolvedPowerEngine
     SetupOnly                          = [bool]$SetupOnly
+    SkipBaseline                       = [bool]$SkipBaseline
     ToolsRoot                          = $ToolsRoot
     OutputRoot                         = $OutputRoot
     StagedPwrTestPath                  = $pwrTestExe
@@ -1317,7 +1319,13 @@ try {
     Write-Section "Test output"
     Write-Host $testRoot
 
-    Export-Baseline -Root $testRoot -EnergyDuration $EnergyDurationSeconds -NoEnergyReport:$SkipEnergyReport
+    if ($SkipBaseline) {
+        Write-Section "Baseline collection skipped"
+        Write-Host "SkipBaseline selected. Before-test inventory and reports were skipped for a faster power-test run."
+    }
+    else {
+        Export-Baseline -Root $testRoot -EnergyDuration $EnergyDurationSeconds -NoEnergyReport:$SkipEnergyReport
+    }
     Export-EventLogs -Root $testRoot -Stage "before"
 
     if ($resolvedPowerEngine -eq "PwrTest") {

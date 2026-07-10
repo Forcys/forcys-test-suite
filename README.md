@@ -125,6 +125,14 @@ Then run a short smoke test:
 .\scripts\Invoke-ForcysPwrTest.ps1 -SleepCycles 2 -HibernateCycles 1 -AwakeSeconds 60 -SleepSeconds 30
 ```
 
+For a fast Modern Standby check that skips the potentially slow before-test inventory (including `Get-ComputerInfo`), use:
+
+```powershell
+.\scripts\Invoke-ForcysPwrTest.ps1 -SleepCycles 2 -SkipHibernate -AwakeSeconds 60 -SleepSeconds 30 -SkipBaseline -SkipEnergyReport
+```
+
+`-SkipBaseline` keeps the output folder, event-log exports, the power test, and after-test reports, but omits before-test system, driver, device, and `powercfg` report collection.
+
 Run defaults are intentionally longer:
 
 ```powershell
