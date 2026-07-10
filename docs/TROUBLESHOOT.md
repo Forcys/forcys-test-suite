@@ -88,6 +88,11 @@ $devcon = Get-ChildItem `
     Select-Object -First 1
 
 $devcon | Select-Object FullName
+
+if (-not $devcon) {
+    Write-Warning "64-bit devcon.exe was not found under the Windows Kits Tools folder. Install the WDK Tools component or use Visual Studio WDK provisioning."
+    return
+}
 ```
 
 Create the virtual button device:
@@ -95,6 +100,8 @@ Create the virtual button device:
 ```powershell
 & $devcon.FullName install $inf.FullName "root\button"
 ```
+
+Do not type `devcon.exe` by itself. DevCon is not normally added to `PATH`; the command above runs the exact WDK copy found in the previous step.
 
 Verify it:
 
